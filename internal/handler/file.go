@@ -1,7 +1,6 @@
-package main
+package handler
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,154 +10,17 @@ import (
 	"mime"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-
-	"github.com/marianozunino/drop/config"
-	"github.com/marianozunino/drop/expiration"
-	"github.com/marianozunino/drop/templates"
+	"github.com/marianozunino/drop/internal/config"
 )
 
-const (
-	// Configuration
-	uploadPath    = "./uploads"
-	maxUploadSize = 100 * 1024 * 1024      // 100MB
-	idLength      = 4                      // Adjust for longer/shorter URLs
-	configPath    = "./config/config.json" // Path to expiration config file
-)
-
-var expirationManager *expiration.ExpirationManager
-
-// TokenResponse is used to return a management token
-type TokenResponse struct {
-	URL   string `json:"url"`
-	Token string `json:"token"`
-}
-
-// FileMetadata stores information about uploaded files
-type FileMetadata struct {
-	Token        string    `json:"token"`
-	OriginalName string    `json:"original_name,omitempty"`
-	UploadDate   time.Time `json:"upload_date"`
-	ExpiresAt    time.Time `json:"expires_at,omitempty"`
-	Size         int64     `json:"size"`
-	ContentType  string    `json:"content_type,omitempty"`
-}
-
-// SetupDefaultConfig creates a default configuration file if none exists
-func SetupDefaultConfig(configPath string) error {
-	// Check if file already exists
-	if _, err := os.Stat(configPath); err == nil {
-		return nil // File exists, no need to create
-	}
-
-	// Create default config
-	data, err := json.MarshalIndent(config.DefaultConfig, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	// Ensure directory exists
-	configDir := filepath.Dir(configPath)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return err
-	}
-
-	// Write config file
-	return os.WriteFile(configPath, data, 0o644)
-}
-
-func main() {
-	// Create necessary directories
-	if err := os.MkdirAll(uploadPath, 0o755); err != nil {
-		log.Fatalf("Failed to create upload directory: %v", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
-		log.Fatalf("Failed to create config directory: %v", err)
-	}
-
-	// Initialize expiration manager
-	if err := SetupDefaultConfig(configPath); err != nil {
-		log.Printf("Warning: Failed to create default config file: %v", err)
-	}
-
-	var err error
-	expirationManager, err = expiration.NewExpirationManager(configPath)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
-	} else {
-		expirationManager.Start()
-		defer expirationManager.Stop()
-	}
-
-	// Create a new Echo instance
-	e := echo.New()
-
-	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-
-	// Routes
-	e.GET("/", handleHome)
-	e.POST("/", handleUpload)
-
-	e.GET("/form", handleHome) // Redirect for legacy compat
-	e.POST("/config", handleConfig)
-
-	// File routes
-	e.GET("/:filename", handleFileAccess)
-	e.POST("/:filename", handleFileManagement)
-
-	// Handle graceful shutdown
-	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-		<-quit
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := e.Shutdown(ctx); err != nil {
-			e.Logger.Fatal(err)
-		}
-
-		if expirationManager != nil {
-			expirationManager.Stop()
-		}
-	}()
-
-	// Start server
-	e.Logger.Fatal(e.Start(":8080"))
-}
-
-// handleHome serves the homepage
-func handleHome(c echo.Context) error {
-	// Render the homepage template
-	if expirationManager == nil {
-		return c.String(http.StatusInternalServerError, "Server configuration not available")
-	}
-
-	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.HomePage(expirationManager.Config).Render(context.Background(), c.Response())
-	if err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error rendering template: %v", err))
-	}
-
-	return nil
-}
-
-// handleFileAccess serves uploaded files with proper content type detection
-func handleFileAccess(c echo.Context) error {
+// HandleFileAccess serves uploaded files with proper content type detection
+func (h *Handler) HandleFileAccess(c echo.Context) error {
 	filename := c.Param("filename")
 
 	// Handle custom filename part (e.g., "aaa.jpg/image.jpeg")
@@ -171,7 +33,7 @@ func handleFileAccess(c echo.Context) error {
 	}
 
 	// Set the complete file path
-	filePath := filepath.Join(uploadPath, filename)
+	filePath := filepath.Join(config.DefaultUploadPath, filename)
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -190,6 +52,12 @@ func handleFileAccess(c echo.Context) error {
 			if err := json.Unmarshal(metadataBytes, &metadata); err == nil && metadata.ContentType != "" {
 				// Set content type if available in metadata
 				contentType = metadata.ContentType
+
+				// Set expiration header if available
+				if !metadata.ExpiresAt.IsZero() {
+					expiresMs := metadata.ExpiresAt.UnixNano() / int64(time.Millisecond)
+					c.Response().Header().Set("X-Expires", fmt.Sprintf("%d", expiresMs))
+				}
 			}
 		}
 	}
@@ -202,7 +70,6 @@ func handleFileAccess(c echo.Context) error {
 			contentType = mimeType
 		} else {
 			// Method 2: Detect from file content using http.DetectContentType
-			// This reads the first 512 bytes to determine content type
 			file, err := os.Open(filePath)
 			if err == nil {
 				defer file.Close()
@@ -236,7 +103,8 @@ func handleFileAccess(c echo.Context) error {
 	return c.File(filePath)
 }
 
-func handleFileManagement(c echo.Context) error {
+// HandleFileManagement manages file operations (delete, update expiration)
+func (h *Handler) HandleFileManagement(c echo.Context) error {
 	// Parse form data for both multipart and standard forms
 	if err := c.Request().ParseMultipartForm(32 << 20); err != nil {
 		// If multipart parsing fails, try regular form parsing
@@ -253,7 +121,7 @@ func handleFileManagement(c echo.Context) error {
 	}
 
 	// Set the complete file paths
-	filePath := filepath.Join(uploadPath, filename)
+	filePath := filepath.Join(config.DefaultUploadPath, filename)
 	metadataPath := filePath + ".meta"
 
 	// Check if file exists
@@ -286,7 +154,6 @@ func handleFileManagement(c echo.Context) error {
 	} else {
 		log.Printf("Warning: Metadata file not found for %s: %v", filename, err)
 		// For backward compatibility, allow legacy files without metadata
-		// TODO: Consider making this more secure in production
 		authenticated = true
 	}
 
@@ -367,69 +234,10 @@ func handleFileManagement(c echo.Context) error {
 	return c.String(http.StatusBadRequest, "No valid operation specified. Use 'delete' or 'expires'.")
 }
 
-// parseExpirationTime parses different expiration time formats
-func parseExpirationTime(expiresStr string) (time.Time, error) {
-	// Try to parse as hours first
-	if hours, err := strconv.Atoi(expiresStr); err == nil {
-		return time.Now().Add(time.Duration(hours) * time.Hour), nil
-	}
-
-	// Try to parse as milliseconds since epoch
-	if ms, err := strconv.ParseInt(expiresStr, 10, 64); err == nil {
-		return time.Unix(0, ms*int64(time.Millisecond)), nil
-	}
-
-	// Try standard date formats
-	formats := []string{
-		time.RFC3339,
-		"2006-01-02",
-		"2006-01-02T15:04:05",
-		"2006-01-02 15:04:05",
-	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, expiresStr); err == nil {
-			return t, nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unrecognized date/time format")
-}
-
-// handleConfig handles viewing and updating the expiration configuration
-func handleConfig(c echo.Context) error {
-	if expirationManager == nil {
-		return c.String(http.StatusInternalServerError, "Expiration manager not available")
-	}
-
-	// Only accepting POST for config updates
-	if c.Request().Header.Get("Content-Type") != "application/json" {
-		return c.String(http.StatusBadRequest, "Content-Type must be application/json")
-	}
-
-	// Read body
-	body, err := io.ReadAll(c.Request().Body)
-	if err != nil {
-		return c.String(http.StatusBadRequest, "Failed to read request body")
-	}
-
-	// Write to config file
-	if err := os.WriteFile(configPath, body, 0o644); err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to write config file")
-	}
-
-	// Reload config
-	if err := expirationManager.LoadConfig(); err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid configuration: %v", err))
-	}
-
-	return c.String(http.StatusOK, "Configuration updated successfully")
-}
-
-// handleUpload processes file uploads
-func handleUpload(c echo.Context) error {
+// HandleUpload processes file uploads
+func (h *Handler) HandleUpload(c echo.Context) error {
 	// Limit request body size
-	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, maxUploadSize)
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, config.MaxUploadSize)
 
 	var fileContent []byte
 	var fileName string
@@ -476,8 +284,8 @@ func handleUpload(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "Invalid Content-Length")
 		}
 
-		if length > maxUploadSize {
-			return c.String(http.StatusBadRequest, fmt.Sprintf("File too large (max %d bytes)", maxUploadSize))
+		if length > config.MaxUploadSize {
+			return c.String(http.StatusBadRequest, fmt.Sprintf("File too large (max %d bytes)", config.MaxUploadSize))
 		}
 
 		// Read content
@@ -508,7 +316,7 @@ func handleUpload(c echo.Context) error {
 		// Use a longer ID for "secret" URLs
 		id, err = generateID(8)
 	} else {
-		id, err = generateID(idLength)
+		id, err = generateID(config.DefaultIDLength)
 	}
 
 	if err != nil {
@@ -525,7 +333,7 @@ func handleUpload(c echo.Context) error {
 	}
 
 	// Create file path
-	filePath := filepath.Join(uploadPath, filename)
+	filePath := filepath.Join(config.DefaultUploadPath, filename)
 
 	// Save file
 	if err := os.WriteFile(filePath, fileContent, 0o644); err != nil {
@@ -538,19 +346,13 @@ func handleUpload(c echo.Context) error {
 	// Check if expiration was specified
 	expiresStr := c.FormValue("expires")
 	if expiresStr != "" {
-		// Try to parse as hours first
-		if hours, err := strconv.Atoi(expiresStr); err == nil {
-			expirationDate = time.Now().Add(time.Duration(hours) * time.Hour)
-		} else {
-			// Try to parse as milliseconds since epoch
-			if ms, err := strconv.ParseInt(expiresStr, 10, 64); err == nil {
-				expirationDate = time.Unix(0, ms*int64(time.Millisecond))
-			}
+		expirationDate, err = parseExpirationTime(expiresStr)
+		if err != nil {
+			return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
 		}
-	} else if expirationManager != nil {
+	} else if h.expManager != nil {
 		// Use the default retention policy
-		expirationDate = expirationManager.GetExpirationDate(fileSize)
-		spew.Dump(expirationDate)
+		expirationDate = h.expManager.GetExpirationDate(fileSize)
 	}
 
 	// Generate management token
@@ -588,71 +390,64 @@ func handleUpload(c echo.Context) error {
 	c.Response().Header().Set("X-Token", managementToken)
 
 	// Return the URL to the uploaded file
-	fileURL := expirationManager.Config.BaseURL + filename
+	fileURL := h.expManager.Config.BaseURL + filename
+
+	// If expires date exists, set header
+	if !expirationDate.IsZero() {
+		expiresMs := expirationDate.UnixNano() / int64(time.Millisecond)
+		c.Response().Header().Set("X-Expires", fmt.Sprintf("%d", expiresMs))
+	}
 
 	// Check content type to determine response format
-	requestContentType := c.Request().Header.Get("Content-Type")
-	if strings.Contains(requestContentType, "application/json") {
-		response := struct {
-			URL           string     `json:"url"`
-			Size          int64      `json:"size"`
-			Token         string     `json:"token,omitempty"`
-			ExpiresAt     *time.Time `json:"expires_at,omitempty"`
-			ExpiresInDays *int       `json:"expires_in_days,omitempty"`
-		}{
-			URL:   fileURL,
-			Size:  fileSize,
-			Token: managementToken,
+	if strings.Contains(c.Request().Header.Get("Accept"), "application/json") {
+		// Return JSON response
+		response := map[string]interface{}{
+			"url":   fileURL,
+			"size":  fileSize,
+			"token": managementToken,
 		}
 
 		if !expirationDate.IsZero() {
-			response.ExpiresAt = &expirationDate
+			response["expires_at"] = expirationDate
 			days := int(expirationDate.Sub(time.Now()).Hours() / 24)
-			response.ExpiresInDays = &days
+			response["expires_in_days"] = days
 		}
 
 		return c.JSON(http.StatusOK, response)
-	} else if c.Request().Header.Get("User-Agent") != "" && !strings.Contains(c.Request().Header.Get("User-Agent"), "curl") {
-		// Browser response
-		c.Response().Header().Set("Content-Type", "text/html")
-
-		expiresInfo := ""
-		if !expirationDate.IsZero() {
-			expiresInfo = fmt.Sprintf("<p>Expires: %s (in %d days)</p>",
-				expirationDate.Format("2006-01-02"),
-				int(expirationDate.Sub(time.Now()).Hours()/24))
-		}
-
-		htmlResponse := fmt.Sprintf(`
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<title>Upload Successful</title>
-			</head>
-			<body>
-				<h2>Upload Successful</h2>
-				<p>Your file is available at: <a href="%s">%s</a></p>
-				<p>File size: %s</p>
-				%s
-				<p>Management token: <tt>%s</tt></p>
-				<p>Keep this token to manage your file later!</p>
-			</body>
-			</html>
-		`, fileURL, fileURL, formatFileSize(fileSize), expiresInfo, managementToken)
-
-		return c.HTML(http.StatusOK, htmlResponse)
 	} else {
-		// CLI/curl response - just return the URL
-		plainResponse := fmt.Sprintf("%s\n", fileURL)
-
-		if !expirationDate.IsZero() {
-			plainResponse += fmt.Sprintf("Expires: %s (in %d days)\n",
-				expirationDate.Format("2006-01-02"),
-				int(expirationDate.Sub(time.Now()).Hours()/24))
-		}
-
-		return c.String(http.StatusOK, plainResponse)
+		// Return plain text URL (for CLI usage)
+		c.Response().Header().Set("Content-Type", "text/plain; charset=utf-8")
+		return c.String(http.StatusOK, fileURL+"\n")
 	}
+}
+
+// parseExpirationTime parses different expiration time formats
+func parseExpirationTime(expiresStr string) (time.Time, error) {
+	// Try to parse as hours first
+	if hours, err := strconv.Atoi(expiresStr); err == nil {
+		return time.Now().Add(time.Duration(hours) * time.Hour), nil
+	}
+
+	// Try to parse as milliseconds since epoch
+	if ms, err := strconv.ParseInt(expiresStr, 10, 64); err == nil {
+		return time.Unix(0, ms*int64(time.Millisecond)), nil
+	}
+
+	// Try standard date formats
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, expiresStr); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unrecognized date/time format")
 }
 
 // generateID creates a random hex string of given length
@@ -662,18 +457,4 @@ func generateID(length int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes)[:length], nil
-}
-
-// formatFileSize converts bytes to human-readable format
-func formatFileSize(size int64) string {
-	const unit = 1024
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
 }

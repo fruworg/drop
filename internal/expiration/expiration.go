@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/marianozunino/drop/config"
+	"github.com/marianozunino/drop/internal/config"
 )
 
 // ExpirationManager handles the file expiration process
@@ -44,8 +43,6 @@ func NewExpirationManager(configPath string) (*ExpirationManager, error) {
 		return nil, fmt.Errorf("failed to load expiration config: %v", err)
 	}
 
-	spew.Dump(manager.Config)
-
 	return manager, nil
 }
 
@@ -56,37 +53,27 @@ func (m *ExpirationManager) LoadConfig() error {
 		return err
 	}
 
-	var config config.Config
-	if err := json.Unmarshal(data, &config); err != nil {
+	var cfg config.Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("invalid config file format: %v", err)
 	}
 
 	// Validate config values
-	if config.MinAge <= 0 {
+	if cfg.MinAge <= 0 {
 		return fmt.Errorf("min_age_days must be greater than 0")
 	}
-	if config.MaxAge <= config.MinAge {
+	if cfg.MaxAge <= cfg.MinAge {
 		return fmt.Errorf("max_age_days must be greater than min_age_days")
 	}
-	if config.MaxSize <= 0 {
+	if cfg.MaxSize <= 0 {
 		return fmt.Errorf("max_size_mib must be greater than 0")
 	}
-	if config.CheckInterval <= 0 {
+	if cfg.CheckInterval <= 0 {
 		return fmt.Errorf("check_interval_min must be greater than 0")
 	}
 
-	m.Config = config
+	m.Config = cfg
 	return nil
-}
-
-// SaveConfig saves the current configuration to a file
-func (m *ExpirationManager) SaveConfig() error {
-	data, err := json.MarshalIndent(m.Config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(m.configPath, data, 0o644)
 }
 
 // Start begins the expiration checking process
@@ -138,31 +125,6 @@ func (m *ExpirationManager) calculateRetention(fileSize float64) time.Duration {
 	// Ensure we don't go below min_age (the minimum retention period)
 	if totalDays < float64(m.Config.MinAge) {
 		totalDays = float64(m.Config.MinAge)
-	}
-
-	return time.Duration(totalDays) * 24 * time.Hour
-}
-
-func (m *ExpirationManager) calculateRetentionFixed(fileSize float64) time.Duration {
-	// Convert file size to MiB
-	fileSizeMiB := fileSize / (1024 * 1024)
-
-	// If file is smaller than max size, use min age
-	if fileSizeMiB <= m.Config.MaxSize {
-		return time.Duration(m.Config.MinAge) * 24 * time.Hour
-	}
-
-	// Apply the corrected formula:
-	// retention = min_age + (max_age - min_age) * relationship factor
-	// This makes the retention INCREASE with file size, not decrease
-	fileSizeRatio := fileSizeMiB/m.Config.MaxSize - 1
-	ageDiff := float64(m.Config.MaxAge - m.Config.MinAge) // Changed from (min_age - max_age)
-	additionalDays := ageDiff * fileSizeRatio             // Linear relationship for simplicity
-
-	// Clamp to ensure we don't exceed max_age
-	totalDays := float64(m.Config.MinAge) + additionalDays
-	if totalDays > float64(m.Config.MaxAge) {
-		totalDays = float64(m.Config.MaxAge)
 	}
 
 	return time.Duration(totalDays) * 24 * time.Hour
@@ -284,7 +246,7 @@ func (m *ExpirationManager) cleanupExpiredFiles() {
 
 // GetExpirationDate calculates when a file will expire based on its size
 func (m *ExpirationManager) GetExpirationDate(fileSize int64) time.Time {
-	spew.Dump(fileSize)
 	retention := m.calculateRetention(float64(fileSize))
 	return time.Now().Add(retention)
 }
+

@@ -15,7 +15,7 @@ tasks:
   build:
     desc: Build the project
     cmds:
-      - go build -v ./...
+      - go build -v -o bin/drop ./cmd/drop
     sources:
       - ./**/*.go
       - go.mod
@@ -47,7 +47,7 @@ tasks:
   dev:
     desc: Run the development server with hot reload
     cmds:
-      - "go tool github.com/bokwoon95/wgo -file=.go -file=.templ -xfile=_templ.go go tool github.com/a-h/templ/cmd/templ generate :: go run main.go"
+      - "go tool github.com/bokwoon95/wgo -file=.go -file=.templ -xfile=_templ.go go tool github.com/a-h/templ/cmd/templ generate :: go run ./cmd/drop"
 
   mod:tidy:
     desc: Tidy up Go modules
@@ -73,4 +73,4 @@ tasks:
     desc: Run the Echo server
     deps: [templ]
     cmds:
-      - go run .
+      - go run ./cmd/drop
