@@ -1,0 +1,204 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/marianozunino/drop/config"
+)
+
+templ HomePage(config config.Config) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>MZ.DROP</title>
+			<style>
+				pre {
+					white-space: pre;
+					font-family: monospace;
+					line-height: 1.2;
+					overflow-x: auto;
+				}
+			</style>
+		</head>
+		<body>
+			<h1>MZ.DROP</h1>
+			<p>Temporary file hoster, inspired by <a href="https://0x0.st/">0x0.st</a> .</p>
+			<p><small>A personal service for quick file sharing.</small></p>
+			<div>
+				min_age = { strconv.Itoa(config.MinAge) } days
+				<br/>
+				max_age = { strconv.Itoa(config.MaxAge) } days
+				<br/>
+				max_size = { fmt.Sprintf("%.1f", config.MaxSize) } MiB
+				<br/>
+				retention = min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3)
+			</div>
+			<pre>
+				@RetentionGraph(config)
+			</pre>
+			<details id="uploading">
+				<summary>Uploading files</summary>
+				<pre>
+					@ValidFields(config)
+				</pre>
+				<details>
+					<summary>cURL examples</summary>
+					<pre>
+						@Examples(config)
+					</pre>
+				</details>
+				<p>
+					It is possible to append a custom file name to any URL:
+					<br/>
+					<code>{ config.BaseURL }aaa.jpg/image.jpeg</code>
+				</p>
+				<p>File URLs are valid for at least { strconv.Itoa(config.MinAge) } days and up to { strconv.Itoa(config.MaxAge) } days (see above).</p>
+				<p>Expired files won't be removed immediately but within the next { strconv.Itoa(config.CheckInterval) } minutes.</p>
+				<p>Maximum file size: 100MB</p>
+			</details>
+			<details id="managing">
+				<summary>Managing your files</summary>
+				<pre>
+					@FileManagement()
+				</pre>
+				<details>
+					<summary>cURL examples</summary>
+					<p>Delete a file immediately:</p>
+					<pre>curl -X POST -F'token=token_here' -F'delete=' { config.BaseURL }abc.txt</pre>
+					<p>Change the expiration date (see above):</p>
+					<pre>curl -X POST -F'token=token_here' -F'expires=3' { config.BaseURL }abc.txt</pre>
+				</details>
+			</details>
+			<details>
+				<summary>Terms of Service</summary>
+				<p>This service is NOT a platform for:</p>
+				<ul>
+					<li>piracy</li>
+					<li>pornography and gore</li>
+					<li>extremist material of any kind</li>
+					<li>terrorist content</li>
+					<li>malware / botnet C&C</li>
+					<li>anything related to crypto currencies</li>
+					<li>backups</li>
+					<li>CI build artifacts</li>
+					<li>other automated mass uploads</li>
+					<li>doxxing, database dumps containing personal information</li>
+					<li>anything illegal</li>
+				</ul>
+				<p>
+					Uploads found to be in violation of these rules will be removed,
+					and the originating IP address may be blocked from further uploads.
+				</p>
+			</details>
+			<details>
+				<summary>Privacy Policy</summary>
+				<p>For the purpose of moderation, the following is stored with each uploaded file:</p>
+				<ul>
+					<li>IP address</li>
+					<li>User agent string</li>
+				</ul>
+				<p>This site generally does not log requests, but may enable logging if necessary for purposes such as threat mitigation.</p>
+				<p>No data is shared with third parties.</p>
+			</details>
+			<hr/>
+			<p>Personal instance inspired by <a href="https://0x0.st/">0x0.st</a>.</p>
+			<p>Hosted on mz.uy for personal use.</p>
+		</body>
+	</html>
+}
+
+templ RetentionGraph(config config.Config) {
+	@templ.Raw(`
+   days
+   ` + strconv.Itoa(config.MaxAge) + `  |  \
+       |   \
+       |    \
+       |     \
+       |      \
+       |       \
+       |        ..
+       |          \
+   ` + strconv.Itoa((config.MinAge+config.MaxAge)/2) + `  | ----------..-------------------------------------------
+       |             ..
+       |               \
+       |                ..
+       |                  ...
+       |                     ..
+       |                       ...
+       |                          ....
+       |                              ......
+    ` + strconv.Itoa(config.MinAge) + `  |                                    ....................
+         0                      ` + fmt.Sprintf("%.1f", config.MaxSize/2) + `                      ` + fmt.Sprintf("%.1f", config.MaxSize) + `
+                                                             MiB
+    `)
+}
+
+templ ValidFields(config config.Config) {
+	@templ.Raw(`
+Send HTTP POST requests to ` + config.BaseURL + ` with data encoded as multipart/form-data
+
+Valid fields are:
+  ┌─────────┬────────────┬────────────────────────────────────────────────┐
+  │ field   │ content    │ remarks                                        │
+  ╞═════════╪════════════╪════════════════════════════════════════════════╡
+  │ file    │ data       │                                                │
+  ├─────────┼────────────┼────────────────────────────────────────────────┤
+  │ url     │ remote URL │ Mutually exclusive with “file”.                │
+  │         │            │ Remote site must return Content-Length header. │
+  ├─────────┼────────────┼────────────────────────────────────────────────┤
+  │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL        │
+  │         │            │ will be generated.                             │
+  ├─────────┼────────────┼────────────────────────────────────────────────┤
+  │ expires │ hours OR   │ Sets maximum file lifetime in hours OR         │
+  │         │ ms since   │ the time of expiration in milliseconds since   │
+  │         │ epoch      │ UNIX epoch.                                    │
+  └─────────┴────────────┴────────────────────────────────────────────────┘
+
+`)
+}
+
+templ FileManagement() {
+	@templ.Raw(`
+	Whenever a file that does not already exist or has expired is uploaded,
+	the HTTP response header includes an X-Token field. You can use this
+	to perform management operations on the file by sending POST requests
+	to the file URL.
+	When using cURL, you can add the -i option to view the response header.
+	Valid fields are:
+	┌─────────┬────────────┬────────────────────────────────────────────────┐
+	│ field   │ content    │ remarks                                        │
+	╞═════════╪════════════╪════════════════════════════════════════════════╡
+	│ token   │ management │ Returned after upload in X-Token HTTP header   │
+	│         │ token      │ field. Required.                               │
+	├─────────┼────────────┼────────────────────────────────────────────────┤
+	│ delete  │ (ignored)  │ Removes the file.                              │
+	├─────────┼────────────┼────────────────────────────────────────────────┤
+	│ expires │ hours OR   │ Sets maximum file lifetime in hours OR         │
+	│         │ ms since   │ the time of expiration in milliseconds since   │
+	│         │ epoch      │ UNIX epoch.                                    │
+	└─────────┴────────────┴────────────────────────────────────────────────┘
+`)
+}
+
+templ Examples(config config.Config) {
+	@templ.Raw(`
+    Uploading a file:
+        curl -F'file=@yourfile.png' ` + config.BaseURL + `
+
+    Copy a file from a remote URL:
+        curl -F'url=http://example.com/image.jpg' ` + config.BaseURL + `
+
+    Same, but with hard-to-guess URLs:
+        curl -F'file=@yourfile.png' -Fsecret= ` + config.BaseURL + `
+        curl -F'url=http://example.com/image.jpg' -Fsecret= ` + config.BaseURL + `
+
+    Setting retention time in hours:
+        curl -F'file=@yourfile.png' -Fexpires=24 ` + config.BaseURL + `
+
+    Setting expiration date formatted as milliseconds since UNIX epoch:
+        curl -F'file=@yourfile.png' -Fexpires=1681996320000 ` + config.BaseURL + `
+	`)
+}

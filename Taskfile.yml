@@ -1,0 +1,76 @@
+# https://taskfile.dev
+version: '3'
+
+vars:
+  MODULE_NAME: github.com/marianozunino/drop
+  COVERAGE_FILE: coverage.out
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the project
+    cmds:
+      - go build -v ./...
+    sources:
+      - ./**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - bin/drop
+
+  templ:
+    desc: Generate templ templates
+    cmds:
+      - go tool github.com/a-h/templ/cmd/templ generate
+    sources:
+      - ./**/*.templ
+    generates:
+      - ./**/*_templ.go
+
+  templ:watch:
+    desc: Watch and generate templ templates
+    cmds:
+      - go tool github.com/a-h/templ/cmd/templ generate --watch
+
+  test:
+    desc: Run tests with pretty output
+    cmds:
+      - go tool gotest.tools/gotestsum --format pkgname
+    sources:
+      - ./**/*.go
+
+  dev:
+    desc: Run the development server with hot reload
+    cmds:
+      - "go tool github.com/bokwoon95/wgo -file=.go -file=.templ -xfile=_templ.go go tool github.com/a-h/templ/cmd/templ generate :: go run main.go"
+
+  mod:tidy:
+    desc: Tidy up Go modules
+    cmds:
+      - go mod tidy -v
+
+  clean:
+    desc: Clean up build artifacts
+    cmds:
+      - rm -rf bin/ tmp/ coverage.html {{.COVERAGE_FILE}}
+
+  # Utility for running Go 1.24 tool commands
+  run:tool:
+    desc: Run a Go tool from go.mod
+    cmds:
+      - go run {{.TOOL_CMD}} {{.CLI_ARGS}}
+    vars:
+      TOOL_CMD: '{{.CLI_ARGS | splitArgs | first}}'
+    internal: true
+
+  # Echo-specific tasks
+  serve:
+    desc: Run the Echo server
+    deps: [templ]
+    cmds:
+      - go run .
