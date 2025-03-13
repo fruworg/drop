@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"embed"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -14,6 +16,9 @@ import (
 	"github.com/marianozunino/drop/internal/handler"
 	custommiddleware "github.com/marianozunino/drop/internal/middleware"
 )
+
+//go:embed favicon.ico
+var faviconFS embed.FS
 
 // App represents the application
 type App struct {
@@ -111,10 +116,22 @@ func setup() error {
 // registerRoutes registers all HTTP routes
 func registerRoutes(e *echo.Echo, app *App) {
 	h := handler.NewHandler(app.expirationManager)
+	var favicon []byte = nil
 
 	// Define routes
 	e.GET("/", h.HandleHome)
 	e.POST("/", h.HandleUpload)
+	e.GET("/favicon.ico", func(c echo.Context) error {
+		if favicon == nil {
+			data, err := faviconFS.ReadFile("favicon.ico")
+			if err != nil {
+				return c.String(http.StatusInternalServerError, "Could not read favicon")
+			}
+			favicon = data
+		}
+		return c.Blob(http.StatusOK, "image/x-icon", favicon)
+	})
+
 	e.GET("/:filename", h.HandleFileAccess)
 	e.POST("/:filename", h.HandleFileManagement)
 }

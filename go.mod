@@ -4,7 +4,6 @@ go 1.24.1
 
 require (
 	github.com/a-h/templ v0.3.833
-	github.com/davecgh/go-spew v1.1.1
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/stretchr/testify v1.10.0
 )
@@ -18,6 +17,7 @@ require (
 	github.com/bokwoon95/wgo v0.5.11 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cli/browser v1.3.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dnephin/pflag v1.0.7 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
