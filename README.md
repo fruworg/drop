@@ -1,158 +1,99 @@
-# THE NULL POINTER
+# The Nil Pointer
 
-A temporary file hosting service built with Echo framework, inspired by [0x0.st](https://0x0.st/).
-This service is primarily designed for personal use, providing a simple, self-hosted solution for temporary file sharing.
+A temporary file hosting service built with Echo, inspired by [0x0.st](https://0x0.st/). Perfect for personal, self-hosted temporary file sharing.
 
 ## Features
 
-- Upload files up to 100MB
-- Dynamic expiration based on file size
-- Secret URLs for more privacy
+- Upload files up to 100MB (configurable)
+- Dynamic file expiration based on size
 - File management (delete, update expiration)
-- REST API with JSON responses
-- Clean, responsive web interface using the templ templating engine
+- Metadata persistence with BadgerDB
 
 ## Dependencies
 
 - [Echo](https://echo.labstack.com/) - High performance, minimalist Go web framework
 - [templ](https://github.com/a-h/templ) - Typed templating language for Go
-
-## Project Structure
-
-- `main.go` - Main application file with Echo server setup
-- `config/` - Configuration related code
-  - `config.go` - Configuration management
-  - `config.json` - Default configuration settings
-- `expiration/` - File expiration management
-  - `expiration.go` - Expiration calculation and management
-  - `expiration_test.go` - Tests for expiration functions
-- `templates/` - HTML templates using the templ templating engine
-  - `home.templ` - Homepage template source
-  - `home_templ.go` - Generated template code
-- `uploads/` - Directory for stored files
-- `Dockerfile` - Container definition for Docker deployment
-- `Taskfile.yml` - Task definitions for build and deployment automation
+- [BadgerDB](https://github.com/dgraph-io/badger) - Fast key-value database for metadata storage
 
 ## Setup
 
-1. Install dependencies:
+1. Clone the repo:
    ```
-   go get github.com/labstack/echo/v4
-   ```
-
-2. Install templ for template compilation:
-   ```
-   go install github.com/a-h/templ/cmd/templ@latest
+   git clone https://github.com/marianozunino/drop.git
+   cd drop
    ```
 
-3. Update your go.mod file (or use the provided one):
+2. Get dependencies:
    ```
-   require (
-     github.com/labstack/echo/v4 v4.10.2
-     github.com/a-h/templ v0.2.501
-   )
+   go mod tidy
    ```
 
-4. Build and run:
+3. Run with task:
    ```
-   templ generate
-   go build
-   ./nullpointer
-   ```
+   # Generate templates and run
+   task dev
 
-5. Alternatively, use the Taskfile:
-   ```
+   # Or build and then run
    task build
-   task run
+   task serve
    ```
 
-6. For Docker deployment:
+4. Docker deployment:
    ```
-   docker build -t nullpointer .
-   docker run -p 8080:8080 -v ./uploads:/app/uploads nullpointer
+   docker build -t nilpointer .
+   docker run -p 8080:8080 -v ./uploads:/uploads -v ./config:/config nilpointer
    ```
-
-## API Usage
-
-### Uploading Files
-
-```bash
-# Upload a file
-curl -F'file=@yourfile.png' https://domain.com/upload
-
-# Upload from URL
-curl -F'url=http://example.com/image.jpg' https://domain.com/upload
-
-# Upload with a secret URL (harder to guess)
-curl -F'file=@yourfile.png' -F'secret=' https://domain.com/upload
-
-# Upload with custom expiration (24 hours)
-curl -F'file=@yourfile.png' -F'expires=24' https://domain.com/upload
-```
-
-### Managing Files
-
-```bash
-# Delete a file
-curl -X POST -F'token=your_token_here' -F'delete=' https://domain.com/filename.ext
-
-# Update expiration
-curl -X POST -F'token=your_token_here' -F'expires=48' https://domain.com/filename.ext
-```
-
-## File Retention
-
-- Minimum age: Configured via config.json (default: 30 days)
-- Maximum age: Configured via config.json (default: 365 days)
-- Retention formula: `min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3)`
 
 ## Configuration
 
-The service uses a JSON configuration file located at `./config/config.json` with the following format:
+Edit `./config/config.json`:
 
 ```json
 {
-  "min_age": 30,
-  "max_age": 365,
-  "max_size": 100,
-  "check_interval": 60
+  "min_age_days": 30,
+  "max_age_days": 365,
+  "max_size_mib": 512,
+  "upload_path": "./uploads",
+  "check_interval_min": 60,
+  "enabled": true,
+  "base_url": "http://localhost:8080/",
+  "badger_path": "./badger",
+  "max_upload_size": 104857600,
+  "id_length": 8
 }
 ```
 
-Parameters:
-- `min_age`: Minimum file retention in days
-- `max_age`: Maximum file retention in days
-- `max_size`: Maximum file size in MiB that gets the maximum retention
-- `check_interval`: How often to check for expired files (in minutes)
+## API Usage
 
-
-## Running with Docker
-
-After building the Docker image, you can run the service with:
+### Upload
 
 ```bash
-docker run -p 8080:8080 -v $(pwd)/uploads:/uploads -v $(pwd)/config:/config nullpointer --rm
+# Upload a file
+curl -F'file=@yourfile.png' http://localhost:8080/
+
+# From URL
+curl -F'url=http://example.com/image.jpg' http://localhost:8080/
+
+# Secret URL
+curl -F'file=@yourfile.png' -F'secret=' http://localhost:8080/
+
+# Custom expiration (24 hours)
+curl -F'file=@yourfile.png' -F'expires=24' http://localhost:8080/
+
+# JSON response
+curl -H "Accept: application/json" -F'file=@yourfile.png' http://localhost:8080/
 ```
 
-This command:
-- Maps port 8080 from the container to port 8080 on your host
-- Mounts your local `uploads` directory to the container's `/uploads` directory for persistent storage
-- Mounts your local `config` directory to the container's `/config` directory for custom configuration
-- Uses the `--rm` flag to automatically remove the container when it exits
-
-For production deployment, you might want to use a specific network and add environment variables:
+### Manage Files
 
 ```bash
-docker build -t dump .
+# Delete a file
+curl -X POST -F'token=your_token_here' -F'delete=' http://localhost:8080/filename.ext
 
-docker run -d --name dump \
-  -p 80:8080 \
-  -v $(pwd)/uploads:/uploads \
-  -v $(pwd)/config:/config \
-  --restart unless-stopped \
-  dump
+# Update expiration
+curl -X POST -F'token=your_token_here' -F'expires=48' http://localhost:8080/filename.ext
 ```
 
 ## License
 
-MIT License
+MIT License - See [LICENSE](LICENSE) file for details
