@@ -6,15 +6,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/marianozunino/drop/internal/config"
+	"github.com/marianozunino/drop/internal/db"
 	"github.com/marianozunino/drop/internal/expiration"
 	"github.com/marianozunino/drop/internal/handler"
-	custommiddleware "github.com/marianozunino/drop/internal/middleware"
+	middie "github.com/marianozunino/drop/internal/middleware"
 )
 
 //go:embed favicon.ico
@@ -25,18 +25,31 @@ type App struct {
 	server            *echo.Echo
 	expirationManager *expiration.ExpirationManager
 	config            *config.Config
+	db                *db.DB
 }
 
 // New creates a new application instance
 func New() (*App, error) {
-	err := setup()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	expirationManager, err := expiration.NewExpirationManager(config.DefaultConfigPath)
+	err = setup(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := db.NewDB(cfg)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
+		return nil, err
+	}
+
+	expirationManager, err := expiration.NewExpirationManager(cfg, db)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
+		return nil, err
 	}
 
 	e := echo.New()
@@ -46,12 +59,13 @@ func New() (*App, error) {
 	app := &App{
 		server:            e,
 		expirationManager: expirationManager,
-		config:            &expirationManager.Config,
+		config:            cfg,
+		db:                db,
 	}
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(custommiddleware.SecurityHeaders())
+	e.Use(middie.SecurityHeaders())
 
 	registerRoutes(e, app)
 
@@ -86,17 +100,9 @@ func (a *App) Shutdown(ctx context.Context) error {
 }
 
 // setup ensures all necessary directories and files exist
-func setup() error {
-	if err := os.MkdirAll(config.DefaultUploadPath, 0o755); err != nil {
+func setup(cfg *config.Config) error {
+	if err := os.MkdirAll(cfg.UploadPath, 0o755); err != nil {
 		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(config.DefaultConfigPath), 0o755); err != nil {
-		return err
-	}
-
-	if err := config.SetupDefaultConfig(); err != nil {
-		log.Printf("Warning: Failed to create default config file: %v", err)
 	}
 
 	return nil
@@ -106,7 +112,7 @@ func setup() error {
 func registerRoutes(e *echo.Echo, app *App) {
 	var favicon []byte
 
-	h := handler.NewHandler(app.expirationManager)
+	h := handler.NewHandler(app.expirationManager, app.config, app.db)
 
 	// Define routes
 	e.GET("/", h.HandleHome)

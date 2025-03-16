@@ -3,19 +3,18 @@ package config
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 )
 
 // Constants for default paths
 const (
-	DefaultUploadPath = "./uploads"
-	DefaultConfigPath = "./config/config.json"
+	defaultUploadPath = "./uploads"
+	configPath        = "./config/config.json"
 )
 
 // Constants for upload settings
 const (
-	MaxUploadSize   = 100 * 1024 * 1024 // 100MB
-	DefaultIDLength = 4
+	maxUploadSize   = 100 * 1024 * 1024 // 100MB
+	defaultIDLength = 4
 )
 
 // Config represents the application configuration
@@ -27,43 +26,30 @@ type Config struct {
 	CheckInterval int     `json:"check_interval_min"` // How often to check for expired files (minutes)
 	Enabled       bool    `json:"enabled"`            // Whether expiration is enabled
 	BaseURL       string  `json:"base_url"`           // Base URL for links
+	BadgerPath    string  `json:"badger_path"`        // Directory that hold the Badger DB
+	MaxUploadSize int64   `json:"max_upload_size"`    // Maximum file size in bytes
+	IdLength      int     `json:"id_length"`          // Length of the token
 }
 
 // DefaultConfig provides default config values
-var DefaultConfig = Config{
+var defaultConfig = Config{
 	MinAge:        30,    // 30 days
 	MaxAge:        365,   // 1 year
 	MaxSize:       512.0, // 512 MiB
-	UploadPath:    DefaultUploadPath,
+	UploadPath:    defaultUploadPath,
 	CheckInterval: 60, // Check once per hour
 	Enabled:       true,
 	BaseURL:       "http://localhost:8080/", // Change to your domain in production
-}
-
-// SetupDefaultConfig creates a default configuration file if none exists
-func SetupDefaultConfig() error {
-	if _, err := os.Stat(DefaultConfigPath); err == nil {
-		return nil
-	}
-
-	data, err := json.MarshalIndent(DefaultConfig, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	configDir := filepath.Dir(DefaultConfigPath)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(DefaultConfigPath, data, 0o644)
+	BadgerPath:    "./badger",
+	MaxUploadSize: maxUploadSize,
+	IdLength:      defaultIDLength,
 }
 
 // LoadConfig loads a configuration from file
-func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+func LoadConfig() (*Config, error) {
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return &defaultConfig, nil
 	}
 
 	var config Config
@@ -72,14 +58,4 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return &config, nil
-}
-
-// SaveConfig saves the configuration to a file
-func SaveConfig(config *Config, path string) error {
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, data, 0o644)
 }

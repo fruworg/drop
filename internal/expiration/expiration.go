@@ -1,77 +1,34 @@
 package expiration
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/marianozunino/drop/internal/config"
+	"github.com/marianozunino/drop/internal/db"
+	"github.com/marianozunino/drop/internal/model"
 )
 
 // ExpirationManager handles the file expiration process
 type ExpirationManager struct {
-	Config     config.Config
+	Config     *config.Config
 	configPath string
 	stopChan   chan struct{}
-}
-
-// FileMetadata stores information about uploaded files
-type FileMetadata struct {
-	Token        string    `json:"token"`
-	OriginalName string    `json:"original_name,omitempty"`
-	UploadDate   time.Time `json:"upload_date"`
-	ExpiresAt    time.Time `json:"expires_at,omitempty"`
-	Size         int64     `json:"size"`
-	ContentType  string    `json:"content_type,omitempty"`
+	db         *db.DB
 }
 
 // NewExpirationManager creates a new expiration manager
-func NewExpirationManager(configPath string) (*ExpirationManager, error) {
+func NewExpirationManager(cfg *config.Config, db *db.DB) (*ExpirationManager, error) {
 	manager := &ExpirationManager{
-		Config:     config.DefaultConfig,
-		configPath: configPath,
-		stopChan:   make(chan struct{}),
-	}
-
-	if err := manager.LoadConfig(); err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to load expiration config: %v", err)
+		Config:   cfg,
+		stopChan: make(chan struct{}),
+		db:       db,
 	}
 
 	return manager, nil
-}
-
-// LoadConfig loads the configuration from a file
-func (m *ExpirationManager) LoadConfig() error {
-	data, err := os.ReadFile(m.configPath)
-	if err != nil {
-		return err
-	}
-
-	var cfg config.Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return fmt.Errorf("invalid config file format: %v", err)
-	}
-
-	if cfg.MinAge <= 0 {
-		return fmt.Errorf("min_age_days must be greater than 0")
-	}
-	if cfg.MaxAge <= cfg.MinAge {
-		return fmt.Errorf("max_age_days must be greater than min_age_days")
-	}
-	if cfg.MaxSize <= 0 {
-		return fmt.Errorf("max_size_mib must be greater than 0")
-	}
-	if cfg.CheckInterval <= 0 {
-		return fmt.Errorf("check_interval_min must be greater than 0")
-	}
-
-	m.Config = cfg
-	return nil
 }
 
 // Start begins the expiration checking process
@@ -129,28 +86,18 @@ func (m *ExpirationManager) calculateRetention(fileSize float64) time.Duration {
 }
 
 // CheckMetadataExpiration checks if a file has expired based on its metadata
-func (m *ExpirationManager) CheckMetadataExpiration(metadataPath string) (bool, error) {
-	data, err := os.ReadFile(metadataPath)
-	if err != nil {
-		return false, err
+func (m *ExpirationManager) CheckMetadataExpiration(meta model.FileMetadata) (bool, error) {
+	if !meta.ExpiresAt.IsZero() {
+		return time.Now().After(meta.ExpiresAt), nil
 	}
 
-	var metadata FileMetadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return false, err
-	}
-
-	if !metadata.ExpiresAt.IsZero() {
-		return time.Now().After(metadata.ExpiresAt), nil
-	}
-
-	if metadata.UploadDate.IsZero() {
+	if meta.UploadDate.IsZero() {
 		// If upload date is missing, we can't calculate expiration
 		return false, nil
 	}
 
-	retention := m.calculateRetention(float64(metadata.Size))
-	expirationTime := metadata.UploadDate.Add(retention)
+	retention := m.calculateRetention(float64(meta.Size))
+	expirationTime := meta.UploadDate.Add(retention)
 
 	return time.Now().After(expirationTime), nil
 }
@@ -176,33 +123,27 @@ func (m *ExpirationManager) cleanupExpiredFiles() {
 			continue
 		}
 
-		if strings.HasSuffix(file.Name(), ".meta") {
-			continue
-		}
-
 		total++
 		filePath := filepath.Join(uploadPath, file.Name())
-		metadataPath := filePath + ".meta"
 
-		if _, err := os.Stat(metadataPath); err == nil {
-			expired, err := m.CheckMetadataExpiration(metadataPath)
-			if err != nil {
-				log.Printf("Error checking metadata expiration for %s: %v", file.Name(), err)
+		meta, err := m.db.GetMetadataByID(filePath)
+		expired := false
+		if err != nil {
+			log.Printf("Error checking metadata expiration for %s: %v", file.Name(), err)
+			expired = true
+		} else {
+			expired, err = m.CheckMetadataExpiration(meta)
+		}
+
+		if expired {
+			log.Printf("Removing expired file: %s", file.Name())
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("Error removing expired file %s: %v", filePath, err)
+			} else {
+				m.db.DeleteMetadata(&meta)
+				removed++
 				continue
 			}
-
-			if expired {
-				log.Printf("Removing expired file (from metadata): %s", file.Name())
-				if err := os.Remove(filePath); err != nil {
-					log.Printf("Error removing expired file %s: %v", filePath, err)
-				} else {
-					if err := os.Remove(metadataPath); err != nil {
-						log.Printf("Error removing metadata file %s: %v", metadataPath, err)
-					}
-					removed++
-				}
-			}
-			continue
 		}
 
 		fileInfo, err := os.Stat(filePath)

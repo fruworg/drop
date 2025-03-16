@@ -16,7 +16,7 @@ func (h *Handler) HandleHome(c echo.Context) error {
 	}
 
 	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.HomePage(h.expManager.Config).Render(context.Background(), c.Response())
+	err := templates.HomePage(*h.cfg).Render(context.Background(), c.Response())
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error rendering template: %v", err))
 	}

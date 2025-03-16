@@ -5,5 +5,9 @@
   "upload_path": "./uploads",
   "check_interval_min": 60,
   "enabled": true,
-  "base_url": "http://localhost:8080/"
+  "base_url": "http://localhost:8080/",
+  "badger_path": "./badger",
+  "max_upload_size": 104857600,
+  "id_length": 8
 }
+
