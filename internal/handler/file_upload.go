@@ -207,18 +207,33 @@ func (h *Handler) saveFile(id string, fileInfo FileInfo) (string, string, error)
 
 // determineExpiration determines when the file should expire
 func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time, error) {
-	var expirationDate time.Time
-
 	expiresStr := c.FormValue("expires")
 	if expiresStr != "" {
 		expirationDate, err := utils.ParseExpirationTime(expiresStr)
 		if err != nil {
 			return expirationDate, err
 		}
-	} else if h.expManager != nil {
-		expirationDate = h.expManager.GetExpirationDate(fileSize)
+
+		maxExpiration := h.expManager.GetExpirationDate(fileSize)
+		log.Printf("Requested expiration date: %v", expirationDate)
+
+		if expirationDate.After(maxExpiration) {
+			// Do not allow expiration dates that break the retention policy
+			log.Printf("Warning: Expiration date is too far in the future, using max expiration set by retention policy")
+			return maxExpiration, nil
+		} else if expirationDate.Before(time.Now()) {
+			// Do not allow expiration dates that are in the past
+			log.Printf("Warning: Expiration date is in the past, using max expiration set by retention policy")
+			return maxExpiration, nil
+		} else {
+			// Expiration date is valid
+			log.Printf("Expiration date: %v", expirationDate)
+			return expirationDate, nil
+		}
+
 	}
 
+	expirationDate := h.expManager.GetExpirationDate(fileSize)
 	return expirationDate, nil
 }
 
@@ -256,9 +271,7 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 }
 
 // sendUploadResponse sends the appropriate response to the client
-func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize int64,
-	token string, expirationDate time.Time,
-) error {
+func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize int64, token string, expirationDate time.Time) error {
 	c.Response().Header().Set("X-Token", token)
 	fileURL := h.expManager.Config.BaseURL + filename
 

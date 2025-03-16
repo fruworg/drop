@@ -14,11 +14,12 @@ FROM gcr.io/distroless/static-debian11
 # Define build arguments with defaults
 ARG PUID=1000
 ARG PGID=1000
+ARG PORT=8080
 
 COPY --from=builder /go/bin/drop /app
 COPY config/config.json /config/config.json
 WORKDIR /
-VOLUME ["/uploads", "/config"]
+VOLUME ["/uploads", "/config", "/badger"]
 EXPOSE 8080
 
 USER ${PUID}:${PGID}
