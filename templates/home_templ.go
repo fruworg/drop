@@ -279,6 +279,9 @@ Valid fields are:
   │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL          │
   │         │            │ will be generated.                               │
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ one_time│ (ignored)  │ If present, file will be deleted after first     │
+  │         │            │ download or view.                                │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ expires │ time       │ Sets file expiration time. Accepts:              │
   │         │ format     │ - Hours as integer (e.g., 24)                    │
   │         │            │ - Milliseconds since epoch (e.g., 1681996320000) │
@@ -380,6 +383,9 @@ func Examples(config config.Config) templ.Component {
         curl -F'file=@yourfile.png' -Fsecret= `+config.BaseURL+`
         curl -F'url=http://example.com/image.jpg' -Fsecret= `+config.BaseURL+`
 
+    Create a one-time download link (file is deleted after first download):
+        curl -F'file=@yourfile.png' -Fone_time= `+config.BaseURL+`
+
     Setting retention time in hours:
         curl -F'file=@yourfile.png' -Fexpires=24 `+config.BaseURL+`
 
@@ -397,6 +403,9 @@ func Examples(config config.Config) templ.Component {
 
     Setting expiration date with SQL datetime format:
         curl -F'file=@yourfile.png' -Fexpires="2023-04-20 10:15:30" `+config.BaseURL+`
+
+    Combining options (one-time view with expiration and secret URL):
+        curl -F'file=@yourfile.png' -Fone_time= -Fsecret= -Fexpires=24 `+config.BaseURL+`
 	`).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

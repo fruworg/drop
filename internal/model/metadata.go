@@ -11,6 +11,7 @@ type FileMetadata struct {
 	ExpiresAt    time.Time `json:"expires_at,omitempty"`
 	Size         int64     `json:"size"`
 	ContentType  string    `json:"content_type,omitempty"`
+	OneTimeView  bool      `json:"one_time_view,omitempty"`
 }
 
 func (m *FileMetadata) ID() string {

@@ -17,7 +17,12 @@ import (
 func (h *Handler) HandleFileAccess(c echo.Context) error {
 	filePath, err := h.validateAndResolvePath(c)
 	if err != nil {
-		return err
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			log.Printf("Warning: File access error: %v", err)
+			return c.String(http.StatusNotFound, "File not found")
+		}
+		log.Printf("Error: File access error: %v", err)
+		return c.String(http.StatusInternalServerError, "Server error")
 	}
 
 	// Get file metadata
@@ -32,11 +37,33 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 	contentDisposition := c.Response().Header().Get("Content-Disposition")
 
 	if strings.Contains(contentDisposition, "inline") {
-		return c.Inline(filePath, meta.OriginalName)
+		err = c.Inline(filePath, meta.OriginalName)
+	} else {
+		err = c.Attachment(filePath, meta.OriginalName)
 	}
 
-	// Serve the file
-	return c.Attachment(filePath, meta.OriginalName)
+	if err == nil && meta.OneTimeView {
+		err = h.deleteOneTimeViewFile(filePath, meta)
+	}
+
+	return err
+}
+
+func (h *Handler) deleteOneTimeViewFile(path string, meta model.FileMetadata) error {
+	time.Sleep(100 * time.Millisecond)
+
+	log.Printf("Deleting one-time view file: %s", path)
+	var err error
+
+	if err = os.Remove(path); err != nil && !os.IsNotExist(err) {
+		log.Printf("Error: Failed to delete one-time view file %s: %v", path, err)
+	}
+
+	if err = h.db.DeleteMetadata(&meta); err != nil {
+		log.Printf("Warning: Failed to delete metadata for one-time view file %s: %v", path, err)
+	}
+
+	return err
 }
 
 // validateAndResolvePath validates and resolves the file path from the request
@@ -45,15 +72,10 @@ func (h *Handler) validateAndResolvePath(c echo.Context) (string, error) {
 
 	parts := strings.SplitN(filename, "/", 2)
 	filename = parts[0]
-
-	if strings.Contains(filename, "..") {
-		return "", c.String(http.StatusBadRequest, "Invalid file path")
-	}
-
 	filePath := filepath.Join(h.cfg.UploadPath, filename)
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", c.String(http.StatusNotFound, "File not found")
+	if _, err := os.Stat(filePath); err != nil {
+		return "", err
 	}
 
 	return filePath, nil
@@ -83,6 +105,10 @@ func (h *Handler) setResponseHeaders(c echo.Context, meta model.FileMetadata) {
 	}
 
 	c.Response().Header().Set("Content-Type", contentType)
+
+	if meta.OneTimeView {
+		c.Response().Header().Set("X-One-Time-View", "true")
+	}
 
 	log.Printf("Content-Type: %s", contentType)
 

@@ -22,6 +22,10 @@ import (
 func (h *Handler) HandleUpload(c echo.Context) error {
 	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.cfg.MaxUploadSize)
 
+	if err := h.parseRequestForm(c); err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
 	fileInfo, err := h.extractFileContent(c)
 	if err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
@@ -57,8 +61,11 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
 	}
 
+	// Handle delete operation
+	_, oneTimeView := c.Request().Form["one_time"]
+
 	// Store metadata
-	managementToken, err := h.storeFileMetadata(filePath, filename, fileInfo, expirationDate)
+	managementToken, err := h.storeFileMetadata(filePath, filename, fileInfo, expirationDate, oneTimeView)
 	if err != nil {
 		log.Printf("Error: Failed to store metadata: %v", err)
 		return c.String(http.StatusInternalServerError, "Server error")
@@ -238,7 +245,7 @@ func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time
 }
 
 // storeFileMetadata creates and stores metadata for the file
-func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time) (string, error) {
+func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time, oneTimeView bool) (string, error) {
 	managementToken, err := generateID(16)
 	if err != nil {
 		log.Printf("Warning: Failed to generate management token: %v", err)
@@ -257,6 +264,7 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 		UploadDate:   time.Now(),
 		Size:         fileInfo.Size,
 		ContentType:  contentType,
+		OneTimeView:  oneTimeView,
 	}
 
 	if !expirationDate.IsZero() {

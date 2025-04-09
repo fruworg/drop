@@ -10,7 +10,7 @@ import (
 
 func TestCalculateRetention(t *testing.T) {
 	// Setup a test configuration
-	cfg := config.Config{
+	cfg := &config.Config{
 		MinAge:        1,     // 1 day minimum retention
 		MaxAge:        30,    // 30 days maximum retention
 		MaxSize:       250.0, // 250 MiB threshold
@@ -82,7 +82,7 @@ func TestCalculateRetention(t *testing.T) {
 
 func TestRetentionDecreaseWithSize(t *testing.T) {
 	// Setup a test configuration
-	cfg := config.Config{
+	cfg := &config.Config{
 		MinAge:        1,     // 1 day minimum retention
 		MaxAge:        30,    // 30 days maximum retention
 		MaxSize:       250.0, // 250 MiB threshold
@@ -137,7 +137,7 @@ func TestRetentionDecreaseWithSize(t *testing.T) {
 
 func TestCorrectFormulaImplementation(t *testing.T) {
 	// Setup a test configuration
-	cfg := config.Config{
+	cfg := &config.Config{
 		MinAge:        1,     // 1 day
 		MaxAge:        30,    // 30 days
 		MaxSize:       250.0, // 250 MiB
@@ -169,7 +169,7 @@ func TestCorrectFormulaImplementation(t *testing.T) {
 
 func TestGetExpirationDate(t *testing.T) {
 	// Setup a test configuration
-	cfg := config.Config{
+	cfg := &config.Config{
 		MinAge:        1,     // 1 day
 		MaxAge:        30,    // 30 days
 		MaxSize:       250.0, // 250 MiB
@@ -218,7 +218,7 @@ func TestGetExpirationDate(t *testing.T) {
 // This test validates the behavior with files much larger than the threshold
 func TestExtremeFileSizes(t *testing.T) {
 	// Setup a test configuration
-	cfg := config.Config{
+	cfg := &config.Config{
 		MinAge:        1,     // 1 day
 		MaxAge:        30,    // 30 days
 		MaxSize:       250.0, // 250 MiB

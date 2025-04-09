@@ -95,7 +95,7 @@ func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 }
 
 // DeleteMetadata deletes metadata
-func (db *DB) DeleteMetadata(meta Storeable) any {
+func (db *DB) DeleteMetadata(meta Storeable) error {
 	return db.Update(func(txn *badger.Txn) error {
 		return txn.Delete([]byte(meta.ID()))
 	})
