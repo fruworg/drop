@@ -20,7 +20,7 @@ import (
 
 // HandleUpload processes file uploads, either from a form or URL
 func (h *Handler) HandleUpload(c echo.Context) error {
-	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.cfg.MaxUploadSize)
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.cfg.MaxSizeToBytes())
 
 	if err := h.parseRequestForm(c); err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
@@ -35,9 +35,9 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Empty file")
 	}
 
-	if fileInfo.Size > h.cfg.MaxUploadSize {
+	if fileInfo.Size > h.cfg.MaxSizeToBytes() {
 		return c.String(http.StatusBadRequest,
-			fmt.Sprintf("File too large (max %d bytes)", h.cfg.MaxUploadSize))
+			fmt.Sprintf("File too large (max %d bytes)", h.cfg.MaxSizeToBytes()))
 	}
 
 	// Generate unique ID for the file
@@ -133,12 +133,12 @@ func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 	}
 
 	// Check content length
-	if err := h.checkContentLength(resp, h.cfg.MaxUploadSize); err != nil {
+	if err := h.checkContentLength(resp, h.cfg.MaxSizeToBytes()); err != nil {
 		return fileInfo, err
 	}
 
 	// Read content
-	content, err := io.ReadAll(io.LimitReader(resp.Body, h.cfg.MaxUploadSize))
+	content, err := io.ReadAll(io.LimitReader(resp.Body, h.cfg.MaxSizeToBytes()))
 	if err != nil {
 		log.Printf("Error: Failed to read from URL: %v", err)
 		return fileInfo, fmt.Errorf("Failed to read from URL")

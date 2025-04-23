@@ -6,7 +6,7 @@
   "check_interval_min": 60,
   "enabled": true,
   "base_url": "http://localhost:8080/",
-  "badger_path": "./badger",
+  "sqlite_path": "/data/dump.db",
   "max_upload_size": 104857600,
   "id_length": 8
 }

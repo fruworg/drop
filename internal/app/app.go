@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"embed"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +36,12 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	configData, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Configuration:\n%s", string(configData))
 
 	err = setup(cfg)
 	if err != nil {
@@ -112,11 +120,15 @@ func setup(cfg *config.Config) error {
 func registerRoutes(e *echo.Echo, app *App) {
 	var favicon []byte
 
+	e.Use(middleware.BodyLimit(
+		fmt.Sprintf("%dM", int(app.config.MaxSize)),
+	))
 	h := handler.NewHandler(app.expirationManager, app.config, app.db)
 
 	// Define routes
 	e.GET("/", h.HandleHome)
 	e.POST("/", h.HandleUpload)
+
 	e.GET("/favicon.ico", func(c echo.Context) error {
 		if favicon == nil {
 			data, err := faviconFS.ReadFile("favicon.ico")

@@ -1,24 +1,43 @@
 package db
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 
-	badger "github.com/dgraph-io/badger/v4"
 	"github.com/marianozunino/drop/internal/config"
 	"github.com/marianozunino/drop/internal/model"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
-	*badger.DB
+	*sql.DB
 }
 
 type Storeable interface {
 	ID() string
 }
 
-// NewDB creates a new BadgerDB
+// NewDB creates a new SQLite database connection
 func NewDB(config *config.Config) (*DB, error) {
-	db, err := badger.Open(badger.DefaultOptions(config.BadgerPath))
+	// Create a new SQLite database connection
+	db, err := sql.Open("sqlite3", config.SQLitePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Test connection
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	// Create table if it doesn't exist
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS metadata (
+			id TEXT PRIMARY KEY,
+			data TEXT NOT NULL
+		)
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -26,12 +45,12 @@ func NewDB(config *config.Config) (*DB, error) {
 	return &DB{db}, nil
 }
 
-// Close closes the BadgerDB
+// Close closes the database connection
 func (db *DB) Close() error {
 	return db.DB.Close()
 }
 
-// StoreMetadata stores metadata in BadgerDB
+// StoreMetadata stores metadata in SQLite
 func (db *DB) StoreMetadata(metadata Storeable) error {
 	// Serialize metadata to JSON
 	value, err := json.Marshal(metadata)
@@ -39,31 +58,34 @@ func (db *DB) StoreMetadata(metadata Storeable) error {
 		return err
 	}
 
-	// Use token as key
-	key := []byte(metadata.ID())
+	// Use prepared statement to prevent SQL injection
+	stmt, err := db.Prepare(`
+		INSERT OR REPLACE INTO metadata (id, data) VALUES (?, ?)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
 
-	// Write to BadgerDB
-	return db.Update(func(txn *badger.Txn) error {
-		return txn.Set(key, value)
-	})
+	// Execute statement
+	_, err = stmt.Exec(metadata.ID(), string(value))
+	return err
 }
 
-// GetMetadataByToken retrieves metadata from BadgerDB
+// GetMetadataByID retrieves metadata from SQLite
 func (db *DB) GetMetadataByID(ID string) (model.FileMetadata, error) {
 	var metadata model.FileMetadata
-	key := []byte(ID)
+	var data string
 
-	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(key)
-		if err != nil {
-			return err
+	err := db.QueryRow("SELECT data FROM metadata WHERE id = ?", ID).Scan(&data)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return metadata, fmt.Errorf("no metadata found with ID: %s", ID)
 		}
+		return metadata, err
+	}
 
-		return item.Value(func(val []byte) error {
-			return json.Unmarshal(val, &metadata)
-		})
-	})
-
+	err = json.Unmarshal([]byte(data), &metadata)
 	return metadata, err
 }
 
@@ -71,32 +93,39 @@ func (db *DB) GetMetadataByID(ID string) (model.FileMetadata, error) {
 func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 	var metadataList []model.FileMetadata
 
-	err := db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
+	rows, err := db.Query("SELECT data FROM metadata")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-		for it.Rewind(); it.Valid(); it.Next() {
-			item := it.Item()
-			var metadata model.FileMetadata
-
-			err := item.Value(func(val []byte) error {
-				return json.Unmarshal(val, &metadata)
-			})
-			if err != nil {
-				return err
-			}
-
-			metadataList = append(metadataList, metadata)
+	for rows.Next() {
+		var data string
+		err := rows.Scan(&data)
+		if err != nil {
+			return nil, err
 		}
-		return nil
-	})
 
-	return metadataList, err
+		var metadata model.FileMetadata
+		err = json.Unmarshal([]byte(data), &metadata)
+		if err != nil {
+			return nil, err
+		}
+
+		metadataList = append(metadataList, metadata)
+	}
+
+	return metadataList, rows.Err()
 }
 
 // DeleteMetadata deletes metadata
 func (db *DB) DeleteMetadata(meta Storeable) error {
-	return db.Update(func(txn *badger.Txn) error {
-		return txn.Delete([]byte(meta.ID()))
-	})
+	stmt, err := db.Prepare("DELETE FROM metadata WHERE id = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(meta.ID())
+	return err
 }

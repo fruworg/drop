@@ -26,9 +26,8 @@ type Config struct {
 	CheckInterval int     `json:"check_interval_min"` // How often to check for expired files (minutes)
 	Enabled       bool    `json:"enabled"`            // Whether expiration is enabled
 	BaseURL       string  `json:"base_url"`           // Base URL for links
-	BadgerPath    string  `json:"badger_path"`        // Directory that hold the Badger DB
-	MaxUploadSize int64   `json:"max_upload_size"`    // Maximum file size in bytes
-	IdLength      int     `json:"id_length"`          // Length of the token
+	SQLitePath    string  `json:"sqlite_path" env:"SQLITE_PATH" envDefault:"./dump.db"`
+	IdLength      int     `json:"id_length"` // Length of the token
 }
 
 // DefaultConfig provides default config values
@@ -40,8 +39,7 @@ var defaultConfig = Config{
 	CheckInterval: 60, // Check once per hour
 	Enabled:       true,
 	BaseURL:       "http://localhost:8080/", // Change to your domain in production
-	BadgerPath:    "./badger",
-	MaxUploadSize: maxUploadSize,
+	SQLitePath:    "/data/dump.db",
 	IdLength:      defaultIDLength,
 }
 
@@ -58,4 +56,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func (c *Config) MaxSizeToBytes() int64 {
+	return int64(c.MaxSize * 1024 * 1024)
 }
