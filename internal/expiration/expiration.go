@@ -104,7 +104,7 @@ func (m *ExpirationManager) CheckMetadataExpiration(meta model.FileMetadata) (bo
 
 // cleanupExpiredFiles checks all files and removes those that have expired
 func (m *ExpirationManager) cleanupExpiredFiles() {
-	if !m.Config.Enabled {
+	if !m.Config.ExpirationManagerEnabled {
 		return
 	}
 	uploadPath := m.Config.UploadPath

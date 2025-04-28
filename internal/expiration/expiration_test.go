@@ -11,13 +11,13 @@ import (
 func TestCalculateRetention(t *testing.T) {
 	// Setup a test configuration
 	cfg := &config.Config{
-		MinAge:        1,     // 1 day minimum retention
-		MaxAge:        30,    // 30 days maximum retention
-		MaxSize:       250.0, // 250 MiB threshold
-		UploadPath:    "./uploads",
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "https://domain.com/",
+		MinAge:                   1,     // 1 day minimum retention
+		MaxAge:                   30,    // 30 days maximum retention
+		MaxSize:                  250.0, // 250 MiB threshold
+		UploadPath:               "./uploads",
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "https://domain.com/",
 	}
 
 	manager := &ExpirationManager{Config: cfg}
@@ -83,13 +83,13 @@ func TestCalculateRetention(t *testing.T) {
 func TestRetentionDecreaseWithSize(t *testing.T) {
 	// Setup a test configuration
 	cfg := &config.Config{
-		MinAge:        1,     // 1 day minimum retention
-		MaxAge:        30,    // 30 days maximum retention
-		MaxSize:       250.0, // 250 MiB threshold
-		UploadPath:    "./uploads",
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "https://domain.com/",
+		MinAge:                   1,     // 1 day minimum retention
+		MaxAge:                   30,    // 30 days maximum retention
+		MaxSize:                  250.0, // 250 MiB threshold
+		UploadPath:               "./uploads",
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "https://domain.com/",
 	}
 
 	manager := &ExpirationManager{Config: cfg}
@@ -138,13 +138,13 @@ func TestRetentionDecreaseWithSize(t *testing.T) {
 func TestCorrectFormulaImplementation(t *testing.T) {
 	// Setup a test configuration
 	cfg := &config.Config{
-		MinAge:        1,     // 1 day
-		MaxAge:        30,    // 30 days
-		MaxSize:       250.0, // 250 MiB
-		UploadPath:    "./uploads",
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "https://domain.com/",
+		MinAge:                   1,     // 1 day
+		MaxAge:                   30,    // 30 days
+		MaxSize:                  250.0, // 250 MiB
+		UploadPath:               "./uploads",
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "https://domain.com/",
 	}
 
 	manager := &ExpirationManager{Config: cfg}
@@ -170,13 +170,13 @@ func TestCorrectFormulaImplementation(t *testing.T) {
 func TestGetExpirationDate(t *testing.T) {
 	// Setup a test configuration
 	cfg := &config.Config{
-		MinAge:        1,     // 1 day
-		MaxAge:        30,    // 30 days
-		MaxSize:       250.0, // 250 MiB
-		UploadPath:    "./uploads",
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "https://domain.com/",
+		MinAge:                   1,     // 1 day
+		MaxAge:                   30,    // 30 days
+		MaxSize:                  250.0, // 250 MiB
+		UploadPath:               "./uploads",
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "https://domain.com/",
 	}
 
 	manager := &ExpirationManager{Config: cfg}
@@ -219,13 +219,13 @@ func TestGetExpirationDate(t *testing.T) {
 func TestExtremeFileSizes(t *testing.T) {
 	// Setup a test configuration
 	cfg := &config.Config{
-		MinAge:        1,     // 1 day
-		MaxAge:        30,    // 30 days
-		MaxSize:       250.0, // 250 MiB
-		UploadPath:    "./uploads",
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "https://domain.com/",
+		MinAge:                   1,     // 1 day
+		MaxAge:                   30,    // 30 days
+		MaxSize:                  250.0, // 250 MiB
+		UploadPath:               "./uploads",
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "https://domain.com/",
 	}
 
 	manager := &ExpirationManager{Config: cfg}

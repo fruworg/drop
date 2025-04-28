@@ -150,7 +150,20 @@ func HomePage(config config.Config) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " minutes.</p><p>Maximum file size: 100MB</p></details> <details id=\"managing\"><summary>Managing your files</summary><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " minutes.</p><p>Maximum file size: ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f", config.MaxSize))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 59, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " MiB (see above).</p></details> <details id=\"managing\"><summary>Managing your files</summary><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -158,33 +171,33 @@ func HomePage(config config.Config) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</pre><details><summary>cURL examples</summary><p>Delete a file immediately:</p><pre>curl -X POST -F'token=token_here' -F'delete=' ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 69, Col: 72}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "abc.txt</pre><p>Change the expiration date (see above):</p><pre>curl -X POST -F'token=token_here' -F'expires=3' ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</pre><details><summary>cURL examples</summary><p>Delete a file immediately:</p><pre>curl -X POST -F'token=token_here' -F'delete=' ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 71, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 69, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "abc.txt</pre></details></details> <details><summary>Terms of Service</summary><p>This service is NOT a platform for:</p><ul><li>piracy</li><li>pornography and gore</li><li>extremist material of any kind</li><li>terrorist content</li><li>malware / botnet C&C</li><li>anything related to crypto currencies</li><li>backups</li><li>CI build artifacts</li><li>other automated mass uploads</li><li>doxxing, database dumps containing personal information</li><li>anything illegal</li></ul><p>Uploads found to be in violation of these rules will be removed, and the originating IP address may be blocked from further uploads.</p></details> <details><summary>Privacy Policy</summary><p>For the purpose of moderation, the following is stored with each uploaded file:</p><ul><li>IP address</li><li>User agent string</li></ul><p>This site generally does not log requests, but may enable logging if necessary for purposes such as threat mitigation.</p><p>No data is shared with third parties.</p></details><hr><p>Personal instance inspired by <a href=\"https://0x0.st/\">0x0.st</a>.</p><p>Hosted on mz.uy for personal use.</p></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "abc.txt</pre><p>Change the expiration date (see above):</p><pre>curl -X POST -F'token=token_here' -F'expires=3' ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 71, Col: 74}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "abc.txt</pre></details></details> <details><summary>Terms of Service</summary><p>This service is NOT a platform for:</p><ul><li>piracy</li><li>pornography and gore</li><li>extremist material of any kind</li><li>terrorist content</li><li>malware / botnet C&C</li><li>anything related to crypto currencies</li><li>backups</li><li>CI build artifacts</li><li>other automated mass uploads</li><li>doxxing, database dumps containing personal information</li><li>anything illegal</li></ul><p>Uploads found to be in violation of these rules will be removed, and the originating IP address may be blocked from further uploads.</p></details> <details><summary>Privacy Policy</summary><p>For the purpose of moderation, the following is stored with each uploaded file:</p><ul><li>IP address</li><li>User agent string</li></ul><p>This site generally does not log requests, but may enable logging if necessary for purposes such as threat mitigation.</p><p>No data is shared with third parties.</p></details><hr><p>Personal instance inspired by <a href=\"https://0x0.st/\">0x0.st</a>.</p><p>Hosted on mz.uy for personal use.</p></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -208,9 +221,9 @@ func RetentionGraph(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var11 == nil {
-			templ_7745c5c3_Var11 = templ.NopComponent
+		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var12 == nil {
+			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -259,9 +272,9 @@ func ValidFields(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var12 == nil {
-			templ_7745c5c3_Var12 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -281,6 +294,9 @@ Valid fields are:
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ one_time│ (ignored)  │ If present, file will be deleted after first     │
   │         │            │ download or view.                                │
+  │         │            │                                                  │
+  │         │            │ When sharing one time links some bots may        │
+  │         │            │ consume the link immediately.                    │
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ expires │ time       │ Sets file expiration time. Accepts:              │
   │         │ format     │ - Hours as integer (e.g., 24)                    │
@@ -315,9 +331,9 @@ func FileManagement() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var13 == nil {
-			templ_7745c5c3_Var13 = templ.NopComponent
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -367,9 +383,9 @@ func Examples(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var14 == nil {
-			templ_7745c5c3_Var14 = templ.NopComponent
+		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var15 == nil {
+			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`

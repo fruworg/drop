@@ -1,12 +1,25 @@
 {
+  "port": 8080,
   "min_age_days": 30,
   "max_age_days": 365,
   "max_size_mib": 512,
   "upload_path": "./uploads",
   "check_interval_min": 60,
-  "enabled": true,
+  "expiration_manager_enabled": true,
   "base_url": "http://localhost:8080/",
   "sqlite_path": "/data/dump.db",
-  "max_upload_size": 104857600,
-  "id_length": 8
+  "id_length": 8,
+  "preview_bots": [
+    "slack",
+    "slackbot",
+    "facebookexternalhit",
+    "twitterbot",
+    "discordbot",
+    "whatsapp",
+    "googlebot",
+    "linkedinbot",
+    "telegram",
+    "skype",
+    "viber"
+  ]
 }

@@ -1,4 +1,4 @@
-package handler_test
+package handler
 
 import (
 	"io"
@@ -6,72 +6,86 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
 	"github.com/marianozunino/drop/internal/config"
 	"github.com/marianozunino/drop/internal/db"
 	"github.com/marianozunino/drop/internal/expiration"
-	"github.com/marianozunino/drop/internal/handler"
 	"github.com/marianozunino/drop/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestOneTimeView(t *testing.T) {
-	// Create a temporary directory for files and DB
+func setupTestEnvironment(t *testing.T) (string, *Handler, *db.DB, func()) {
 	tempDir, err := os.MkdirTemp("", "drop-test")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
 
-	// Set up test config
+	testDBPath := filepath.Join(tempDir, "test.db")
+
 	cfg := &config.Config{
-		UploadPath:    tempDir,
-		MinAge:        1,
-		MaxAge:        30,
-		MaxSize:       250.0,
-		CheckInterval: 60,
-		Enabled:       true,
-		BaseURL:       "http://localhost:8080/",
-		BadgerPath:    filepath.Join(tempDir, "badger"),
-		MaxUploadSize: 1024 * 1024, // 1MB
-		IdLength:      4,
+		UploadPath:               tempDir,
+		MinAge:                   1,
+		MaxAge:                   30,
+		MaxSize:                  250.0,
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "http://localhost:8080/",
+		SQLitePath:               testDBPath,
+		IdLength:                 4,
+		PreviewBots: []string{
+			"slack",
+			"slackbot",
+			"facebookexternalhit",
+			"twitterbot",
+		},
 	}
 
-	// Create a test DB
 	testDB, err := db.NewDB(cfg)
 	require.NoError(t, err)
-	defer testDB.Close()
 
-	// Create expiration manager
 	expManager, err := expiration.NewExpirationManager(cfg, testDB)
 	require.NoError(t, err)
 
-	// Create handler
-	h := handler.NewHandler(expManager, cfg, testDB)
+	h := NewHandler(expManager, cfg, testDB)
 
-	// Create a test file with a filename that's exactly as the handler would expect
-	testFilename := "testfile.txt"
-	testFilePath := filepath.Join(tempDir, testFilename)
-	testFileContent := "This is a test file for one-time view"
-	err = os.WriteFile(testFilePath, []byte(testFileContent), 0o644)
-	require.NoError(t, err)
-
-	// Create metadata for the test file with OneTimeView=true
-	meta := model.FileMetadata{
-		FilePath:     testFilePath,
-		Token:        "test-token",
-		OriginalName: "original-test.txt",
-		Size:         int64(len(testFileContent)),
-		ContentType:  "text/plain",
-		OneTimeView:  true, // One-time view flag
+	cleanup := func() {
+		testDB.Close()
+		os.RemoveAll(tempDir)
 	}
 
-	// Store metadata
-	err = testDB.StoreMetadata(&meta)
+	return tempDir, h, testDB, cleanup
+}
+
+func createTestFile(t *testing.T, tempDir string, db *db.DB, filename, content string, oneTimeView bool) string {
+	filePath := filepath.Join(tempDir, filename)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
-	// Set up Echo and request/response
+	meta := model.FileMetadata{
+		FilePath:     filePath,
+		Token:        "test-token",
+		OriginalName: "original-" + filename,
+		Size:         int64(len(content)),
+		ContentType:  "text/plain",
+		OneTimeView:  oneTimeView,
+	}
+
+	err = db.StoreMetadata(&meta)
+	require.NoError(t, err)
+
+	return filePath
+}
+
+func TestStandardFileAccess(t *testing.T) {
+	tempDir, h, db, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	testFilename := "standard.txt"
+	testContent := "This is a standard file"
+	filePath := createTestFile(t, tempDir, db, testFilename, testContent, false)
+
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
 	rec := httptest.NewRecorder()
@@ -79,22 +93,254 @@ func TestOneTimeView(t *testing.T) {
 	c.SetParamNames("filename")
 	c.SetParamValues(testFilename)
 
-	// Execute the file access handler
-	err = h.HandleFileAccess(c)
+	err := h.HandleFileAccess(c)
 	assert.NoError(t, err)
 
-	// Check that the file was served properly
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body, err := io.ReadAll(rec.Body)
 	assert.NoError(t, err)
-	assert.Equal(t, testFileContent, string(body))
+	assert.Equal(t, testContent, string(body))
+
+	_, err = os.Stat(filePath)
+	assert.NoError(t, err, "The file should still exist")
+}
+
+func TestOneTimeFileAccess(t *testing.T) {
+	tempDir, h, db, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	testFilename := "onetime.txt"
+	testContent := "This is a one-time file"
+	filePath := createTestFile(t, tempDir, db, testFilename, testContent, true)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("filename")
+	c.SetParamValues(testFilename)
+
+	err := h.HandleFileAccess(c)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	body, err := io.ReadAll(rec.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, testContent, string(body))
 	assert.Equal(t, "true", rec.Header().Get("X-One-Time-View"))
 
-	// Verify the file has been deleted (should now happen synchronously)
-	_, err = os.Stat(testFilePath)
+	_, err = os.Stat(filePath)
 	assert.True(t, os.IsNotExist(err), "The file should have been deleted")
 
-	// // Verify the metadata has been deleted
-	// _, err = testDB.GetMetadataByID(testFilePath)
-	// assert.Error(t, err, "The metadata should have been deleted")
+	req = httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("filename")
+	c.SetParamValues(testFilename)
+
+	err = h.HandleFileAccess(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestPreviewBotAccess(t *testing.T) {
+	tempDir, h, db, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	testFilename := "onetime-bot.txt"
+	testContent := "This is a one-time file accessed by a bot"
+	filePath := createTestFile(t, tempDir, db, testFilename, testContent, true)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
+	req.Header.Set("User-Agent", "Slackbot-LinkExpanding 1.0")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("filename")
+	c.SetParamValues(testFilename)
+
+	err := h.HandleFileAccess(c)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	body, err := io.ReadAll(rec.Body)
+	assert.NoError(t, err)
+	assert.True(t, strings.Contains(string(body), "One-Time Download Link"), "Response should contain placeholder text")
+	assert.True(t, strings.Contains(rec.Header().Get("Content-Type"), "text/html"), "Content type should be HTML for the placeholder")
+
+	_, err = os.Stat(filePath)
+	assert.NoError(t, err, "The file should still exist after bot access")
+
+	req = httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("filename")
+	c.SetParamValues(testFilename)
+
+	err = h.HandleFileAccess(c)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	body, err = io.ReadAll(rec.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, testContent, string(body))
+
+	_, err = os.Stat(filePath)
+	assert.True(t, os.IsNotExist(err), "The file should have been deleted after real user access")
+}
+
+func TestNonExistentFile(t *testing.T) {
+	_, h, _, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/nonexistent.txt", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("filename")
+	c.SetParamValues("nonexistent.txt")
+
+	err := h.HandleFileAccess(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestDifferentContentTypes(t *testing.T) {
+	tempDir, h, db, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	testCases := []struct {
+		filename       string
+		content        string
+		contentType    string
+		shouldBeInline bool
+	}{
+		{
+			filename:       "document.txt",
+			content:        "This is a text document",
+			contentType:    "text/plain",
+			shouldBeInline: true,
+		},
+		{
+			filename:       "image.jpg",
+			content:        "fake image content",
+			contentType:    "image/jpeg",
+			shouldBeInline: true,
+		},
+		{
+			filename:       "archive.zip",
+			content:        "fake zip content",
+			contentType:    "application/zip",
+			shouldBeInline: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.filename, func(t *testing.T) {
+			filePath := filepath.Join(tempDir, tc.filename)
+			err := os.WriteFile(filePath, []byte(tc.content), 0o644)
+			require.NoError(t, err)
+
+			meta := model.FileMetadata{
+				FilePath:     filePath,
+				Token:        "test-token",
+				OriginalName: "original-" + tc.filename,
+				Size:         int64(len(tc.content)),
+				ContentType:  tc.contentType,
+				OneTimeView:  false,
+			}
+
+			err = db.StoreMetadata(&meta)
+			require.NoError(t, err)
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/"+tc.filename, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("filename")
+			c.SetParamValues(tc.filename)
+
+			err = h.HandleFileAccess(c)
+			assert.NoError(t, err)
+
+			assert.Equal(t, tc.contentType, rec.Header().Get("Content-Type"))
+
+			contentDisposition := rec.Header().Get("Content-Disposition")
+			if tc.shouldBeInline {
+				assert.Contains(t, contentDisposition, "inline")
+			} else {
+				assert.NotContains(t, contentDisposition, "inline")
+			}
+		})
+	}
+}
+
+func TestCustomUserAgentDetection(t *testing.T) {
+	testCases := []struct {
+		name      string
+		userAgent string
+		isBot     bool
+	}{
+		{
+			name:      "Slack Bot",
+			userAgent: "Slackbot-LinkExpanding 1.0",
+			isBot:     true,
+		},
+		{
+			name:      "Twitter Bot",
+			userAgent: "Twitterbot/1.0",
+			isBot:     true,
+		},
+		{
+			name:      "Chrome Browser",
+			userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+			isBot:     false,
+		},
+		{
+			name:      "Firefox Browser",
+			userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
+			isBot:     false,
+		},
+		{
+			name:      "Bot not in config",
+			userAgent: "LinkedInBot/1.0",
+			isBot:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir, h, db, cleanup := setupTestEnvironment(t)
+			defer cleanup()
+
+			testFilename := "ua-test.txt"
+			testContent := "This is a test file for user agent detection"
+			createTestFile(t, tempDir, db, testFilename, testContent, true)
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/"+testFilename, nil)
+			req.Header.Set("User-Agent", tc.userAgent)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("filename")
+			c.SetParamValues(testFilename)
+
+			err := h.HandleFileAccess(c)
+			assert.NoError(t, err)
+
+			if tc.isBot {
+				assert.Contains(t, rec.Header().Get("Content-Type"), "text/html")
+				body, err := io.ReadAll(rec.Body)
+				assert.NoError(t, err)
+				assert.Contains(t, string(body), "One-Time Download Link")
+			} else {
+				assert.Equal(t, "text/plain", rec.Header().Get("Content-Type"))
+				body, err := io.ReadAll(rec.Body)
+				assert.NoError(t, err)
+				assert.Equal(t, testContent, string(body))
+			}
+		})
+	}
 }

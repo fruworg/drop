@@ -86,13 +86,15 @@ func (a *App) Start() {
 		a.expirationManager.Start()
 	}
 
+	serverAddr := fmt.Sprintf(":%d", a.config.Port)
+
 	go func() {
-		if err := a.server.Start(":8080"); err != nil {
+		if err := a.server.Start(serverAddr); err != nil {
 			log.Printf("Server stopped: %v", err)
 		}
 	}()
 
-	log.Println("Server started on :8080")
+	log.Printf("Server started on %s", serverAddr)
 }
 
 // Stop stops all application services

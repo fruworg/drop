@@ -1,6 +1,10 @@
+// Modified file_access.go with the fix for preview bots
+// This version uses a configurable list of preview bots
+
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +15,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/marianozunino/drop/internal/model"
+	"github.com/marianozunino/drop/templates"
 )
 
 // HandleFileAccess serves the requested file to the client
@@ -31,6 +36,12 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to get metadata")
 	}
 
+	// Check if this is a preview bot request for a one-time file
+	isPreviewBot := h.isLinkPreviewBot(c.Request())
+	if meta.OneTimeView && isPreviewBot {
+		return h.servePlaceholderForPreviewBot(c)
+	}
+
 	// Set response headers
 	h.setResponseHeaders(c, meta)
 
@@ -47,6 +58,68 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 	}
 
 	return err
+}
+
+// isLinkPreviewBot determines if the request is likely from a preview bot
+func (h *Handler) isLinkPreviewBot(req *http.Request) bool {
+	userAgent := req.Header.Get("User-Agent")
+
+	// Use configured bot patterns from config if available
+	if h.cfg.PreviewBots != nil && len(h.cfg.PreviewBots) > 0 {
+		userAgentLower := strings.ToLower(userAgent)
+		for _, bot := range h.cfg.PreviewBots {
+			if strings.Contains(userAgentLower, strings.ToLower(bot)) {
+				log.Printf("Preview bot detected: %s", userAgent)
+				return true
+			}
+		}
+	} else {
+		// Fallback to default list if no configuration is available
+		defaultBots := []string{
+			"slack",
+			"slackbot",
+			"facebookexternalhit",
+			"twitterbot",
+			"discordbot",
+			"whatsapp",
+			"googlebot",
+			"linkedinbot",
+			"telegram",
+			"skype",
+			"viber",
+		}
+
+		userAgentLower := strings.ToLower(userAgent)
+		for _, bot := range defaultBots {
+			if strings.Contains(userAgentLower, bot) {
+				log.Printf("Preview bot detected (using default list): %s", userAgent)
+				return true
+			}
+		}
+	}
+
+	// Additional detection for bots that don't identify themselves clearly
+	// Check for common preview bot behavior
+	if req.Header.Get("X-Purpose") == "preview" ||
+		req.Header.Get("X-Facebook") != "" ||
+		req.Header.Get("X-Forwarded-For") != "" && strings.Contains(req.Header.Get("Accept"), "image/*") {
+		log.Printf("Preview bot behavior detected from headers")
+		return true
+	}
+
+	return false
+}
+
+// servePlaceholderForPreviewBot returns a small placeholder response for preview bots
+// to avoid consuming one-time links
+func (h *Handler) servePlaceholderForPreviewBot(c echo.Context) error {
+	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
+	err := templates.Preview().Render(context.Background(), c.Response())
+	if err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error rendering template: %v", err))
+	}
+
+	return nil
 }
 
 func (h *Handler) deleteOneTimeViewFile(path string, meta model.FileMetadata) error {

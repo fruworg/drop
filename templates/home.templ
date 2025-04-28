@@ -56,7 +56,7 @@ templ HomePage(config config.Config) {
 				</p>
 				<p>File URLs are valid for at least { strconv.Itoa(config.MinAge) } days and up to { strconv.Itoa(config.MaxAge) } days (see above).</p>
 				<p>Expired files won't be removed immediately but within the next { strconv.Itoa(config.CheckInterval) } minutes.</p>
-				<p>Maximum file size: 100MB</p>
+				<p>Maximum file size: { fmt.Sprintf("%.1f", config.MaxSize) } MiB (see above).</p>
 			</details>
 			<details id="managing">
 				<summary>Managing your files</summary>
@@ -153,6 +153,9 @@ Valid fields are:
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ one_time│ (ignored)  │ If present, file will be deleted after first     │
   │         │            │ download or view.                                │
+  │         │            │                                                  │
+  │         │            │ When sharing one time links some bots may        │
+  │         │            │ consume the link immediately.                    │
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ expires │ time       │ Sets file expiration time. Accepts:              │
   │         │ format     │ - Hours as integer (e.g., 24)                    │
