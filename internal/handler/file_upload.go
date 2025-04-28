@@ -289,7 +289,7 @@ func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize i
 	}
 
 	if strings.Contains(c.Request().Header.Get("Accept"), "application/json") {
-		response := map[string]interface{}{
+		response := map[string]any{
 			"url":   fileURL,
 			"size":  fileSize,
 			"token": token,
