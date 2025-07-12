@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,21 +41,6 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 			fmt.Sprintf("File too large (max %d bytes)", h.cfg.MaxSizeToBytes()))
 	}
 
-	// Generate unique ID for the file
-	useSecretId := c.FormValue("secret") != ""
-	id, err := h.generateFileID(useSecretId)
-	if err != nil {
-		log.Printf("Error: Failed to generate ID: %v", err)
-		return c.String(http.StatusInternalServerError, "Server error")
-	}
-
-	// Create filename and save file
-	filename, filePath, err := h.saveFile(id, fileInfo)
-	if err != nil {
-		log.Printf("Error: Failed to save file: %v", err)
-		return c.String(http.StatusInternalServerError, "Server error")
-	}
-
 	// Handle expiration settings
 	expirationDate, err := h.determineExpiration(c, fileInfo.Size)
 	if err != nil {
@@ -65,52 +51,155 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 	_, oneTimeView := c.Request().Form["one_time"]
 
 	// Store metadata
-	managementToken, err := h.storeFileMetadata(filePath, filename, fileInfo, expirationDate, oneTimeView)
+	managementToken, err := h.storeFileMetadata(fileInfo.FilePath, fileInfo.Name, fileInfo, expirationDate, oneTimeView)
 	if err != nil {
 		log.Printf("Error: Failed to store metadata: %v", err)
+		// Clean up the file if metadata storage fails
+		if err := os.Remove(fileInfo.FilePath); err != nil {
+			log.Printf("Warning: Failed to clean up file after metadata error: %v", err)
+		}
 		return c.String(http.StatusInternalServerError, "Server error")
 	}
 
 	// Return response
-	return h.sendUploadResponse(c, filename, fileInfo.Size, managementToken, expirationDate)
+	return h.sendUploadResponse(c, fileInfo.Filename, fileInfo.Size, managementToken, expirationDate)
 }
 
 // FileInfo holds information about the uploaded file
 type FileInfo struct {
-	Content     []byte
-	Name        string
+	FilePath    string // Path where file was saved
+	Filename    string // Final filename (with extension)
+	Name        string // Original filename
 	Size        int64
 	ContentType string
 }
 
-// extractFileContent obtains file content either from form upload or URL
-func (h *Handler) extractFileContent(c echo.Context) (FileInfo, error) {
-	var fileInfo FileInfo
 
+func (h *Handler) extractFileContent(c echo.Context) (FileInfo, error) {
 	file, header, err := c.Request().FormFile("file")
 	if err == nil {
 		defer file.Close()
-
-		content, err := io.ReadAll(file)
-		if err != nil {
-			log.Printf("Error: Failed to read file: %v", err)
-			return fileInfo, fmt.Errorf("Failed to read file")
-		}
-
-		fileInfo = FileInfo{
-			Content:     content,
-			Name:        header.Filename,
-			Size:        header.Size,
-			ContentType: http.DetectContentType(content),
-		}
-		return fileInfo, nil
+		return h.saveFromFormFile(file, header)
 	}
 
 	// Try URL-based upload if form upload failed
 	return h.downloadFromURL(c)
 }
 
-// downloadFromURL downloads a file from the URL provided in the form
+
+type ProgressReader struct {
+	reader    io.Reader
+	total     int64
+	current   int64
+	filename  string
+	startTime time.Time
+}
+
+func NewProgressReader(reader io.Reader, total int64, filename string) *ProgressReader {
+	return &ProgressReader{
+		reader:    reader,
+		total:     total,
+		filename:  filename,
+		startTime: time.Now(),
+	}
+}
+
+func (pr *ProgressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	pr.current += int64(n)
+
+	// Log progress every 10% or every 10MB, whichever comes first
+	if pr.total > 0 {
+		percentage := float64(pr.current) / float64(pr.total) * 100
+		if pr.current%(10*1024*1024) == 0 || // Every 10MB
+			int(percentage)%10 == 0 && pr.current > 0 { // Every 10%
+			elapsed := time.Since(pr.startTime)
+			speed := float64(pr.current) / elapsed.Seconds() / 1024 / 1024 // MB/s
+			log.Printf("Upload progress: %s - %.1f%% (%s/%s) - %.2f MB/s",
+				pr.filename, percentage, formatBytes(pr.current), formatBytes(pr.total), speed)
+		}
+	}
+
+	return n, err
+}
+
+
+func formatBytes(bytes int64) string {
+	if bytes < 1024 {
+		return fmt.Sprintf("%d B", bytes)
+	}
+
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+	size := float64(bytes)
+	unitIndex := 0
+
+	for size >= 1024 && unitIndex < len(units)-1 {
+		size /= 1024
+		unitIndex++
+	}
+
+	if size >= 10 {
+		return fmt.Sprintf("%.1f %s", size, units[unitIndex])
+	}
+	return fmt.Sprintf("%.2f %s", size, units[unitIndex])
+}
+
+
+func (h *Handler) saveFromFormFile(file io.Reader, header *multipart.FileHeader) (FileInfo, error) {
+	// Generate unique ID for the file
+	useSecretId := false // You might want to pass this as a parameter
+	id, err := h.generateFileID(useSecretId)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("failed to generate ID: %w", err)
+	}
+
+	// Create filename and file path
+	fileExt := filepath.Ext(header.Filename)
+	filename := id
+	if fileExt != "" {
+		filename += fileExt
+	}
+
+	filePath := filepath.Join(h.cfg.UploadPath, filename)
+
+	// Create the file
+	dst, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return FileInfo{}, fmt.Errorf("failed to create file: %w", err)
+	}
+	defer dst.Close()
+
+	// Wrap the reader with progress tracking
+	progressReader := NewProgressReader(file, header.Size, header.Filename)
+	log.Printf("Starting upload: %s (%s)", header.Filename, formatBytes(header.Size))
+
+	// Copy with size limit and progress tracking
+	limitedReader := io.LimitReader(progressReader, h.cfg.MaxSizeToBytes())
+	size, err := io.Copy(dst, limitedReader)
+	if err != nil {
+		os.Remove(filePath) // Clean up on error
+		return FileInfo{}, fmt.Errorf("failed to save file: %w", err)
+	}
+
+	// Detect content type by reading first 512 bytes
+	contentType := h.detectContentType(filePath)
+
+	fileInfo := FileInfo{
+		FilePath:    filePath,
+		Filename:    filename,
+		Name:        header.Filename,
+		Size:        size,
+		ContentType: contentType,
+	}
+
+	elapsed := time.Since(progressReader.startTime)
+	avgSpeed := float64(size) / elapsed.Seconds() / 1024 / 1024 // MB/s
+	log.Printf("✓ Upload completed: %s (%s) with ID: %s - %.2f MB/s",
+		header.Filename, formatBytes(size), id, avgSpeed)
+	return fileInfo, nil
+}
+
+
 func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 	var fileInfo FileInfo
 
@@ -137,27 +226,81 @@ func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 		return fileInfo, err
 	}
 
-	// Read content
-	content, err := io.ReadAll(io.LimitReader(resp.Body, h.cfg.MaxSizeToBytes()))
+	// Generate unique ID for the file
+	useSecretId := c.FormValue("secret") != ""
+	id, err := h.generateFileID(useSecretId)
 	if err != nil {
-		log.Printf("Error: Failed to read from URL: %v", err)
-		return fileInfo, fmt.Errorf("Failed to read from URL")
+		return fileInfo, fmt.Errorf("failed to generate ID: %w", err)
 	}
 
 	// Extract filename from URL path
-	fileName := h.extractFilenameFromURL(url)
-
-	fileInfo = FileInfo{
-		Content:     content,
-		Name:        fileName,
-		Size:        int64(len(content)),
-		ContentType: resp.Header.Get("Content-Type"),
+	originalName := h.extractFilenameFromURL(url)
+	fileExt := filepath.Ext(originalName)
+	filename := id
+	if fileExt != "" {
+		filename += fileExt
 	}
 
+	filePath := filepath.Join(h.cfg.UploadPath, filename)
+
+	// Create the file
+	dst, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fileInfo, fmt.Errorf("failed to create file: %w", err)
+	}
+	defer dst.Close()
+
+	// Get content length for progress tracking
+	contentLength := max(resp.ContentLength, 0)
+
+	// Wrap the response body with progress tracking
+	progressReader := NewProgressReader(resp.Body, contentLength, originalName)
+	log.Printf("Starting download: %s (%s)", originalName, formatBytes(contentLength))
+
+	// Stream download with size limit and progress tracking
+	limitedReader := io.LimitReader(progressReader, h.cfg.MaxSizeToBytes())
+	size, err := io.Copy(dst, limitedReader)
+	if err != nil {
+		os.Remove(filePath) // Clean up on error
+		log.Printf("Error: Failed to save from URL: %v", err)
+		return fileInfo, fmt.Errorf("Failed to save from URL")
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = h.detectContentType(filePath)
+	}
+
+	fileInfo = FileInfo{
+		FilePath:    filePath,
+		Filename:    filename,
+		Name:        originalName,
+		Size:        size,
+		ContentType: contentType,
+	}
+
+	log.Printf("✓ Download completed: %s (%d bytes) with ID: %s", originalName, size, id)
 	return fileInfo, nil
 }
 
-// checkContentLength validates the Content-Length header
+
+func (h *Handler) detectContentType(filePath string) string {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "application/octet-stream"
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "application/octet-stream"
+	}
+
+	return http.DetectContentType(buffer[:n])
+}
+
+
 func (h *Handler) checkContentLength(resp *http.Response, maxSize int64) error {
 	contentLength := resp.Header.Get("Content-Length")
 	if contentLength != "" {
@@ -171,7 +314,7 @@ func (h *Handler) checkContentLength(resp *http.Response, maxSize int64) error {
 	return nil
 }
 
-// extractFilenameFromURL extracts a filename from a URL
+
 func (h *Handler) extractFilenameFromURL(url string) string {
 	fileName := "download"
 	urlPath := strings.Split(url, "/")
@@ -187,7 +330,7 @@ func (h *Handler) extractFilenameFromURL(url string) string {
 	return fileName
 }
 
-// generateFileID creates a unique ID for the file
+
 func (h *Handler) generateFileID(useSecretId bool) (string, error) {
 	if useSecretId {
 		return generateID(8)
@@ -195,24 +338,7 @@ func (h *Handler) generateFileID(useSecretId bool) (string, error) {
 	return generateID(h.cfg.IdLength)
 }
 
-// saveFile saves the file content to disk
-func (h *Handler) saveFile(id string, fileInfo FileInfo) (string, string, error) {
-	fileExt := filepath.Ext(fileInfo.Name)
-	filename := id
-	if fileExt != "" {
-		filename += fileExt
-	}
 
-	filePath := filepath.Join(h.cfg.UploadPath, filename)
-	if err := os.WriteFile(filePath, fileInfo.Content, 0o644); err != nil {
-		return "", "", err
-	}
-
-	log.Printf("Saved file: %s (%d bytes) with ID: %s", fileInfo.Name, fileInfo.Size, id)
-	return filename, filePath, nil
-}
-
-// determineExpiration determines when the file should expire
 func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time, error) {
 	expiresStr := c.FormValue("expires")
 	if expiresStr != "" {
@@ -244,7 +370,7 @@ func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time
 	return expirationDate, nil
 }
 
-// storeFileMetadata creates and stores metadata for the file
+
 func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time, oneTimeView bool) (string, error) {
 	managementToken, err := generateID(16)
 	if err != nil {
@@ -252,18 +378,13 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 		managementToken = filepath.Base(filePath)
 	}
 
-	contentType := fileInfo.ContentType
-	if contentType == "" {
-		contentType = http.DetectContentType(fileInfo.Content)
-	}
-
 	metadata := model.FileMetadata{
 		FilePath:     filePath,
 		Token:        managementToken,
-		OriginalName: fileInfo.Name,
+		OriginalName: fileName,
 		UploadDate:   time.Now(),
 		Size:         fileInfo.Size,
-		ContentType:  contentType,
+		ContentType:  fileInfo.ContentType,
 		OneTimeView:  oneTimeView,
 	}
 
@@ -278,7 +399,7 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 	return managementToken, nil
 }
 
-// sendUploadResponse sends the appropriate response to the client
+
 func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize int64, token string, expirationDate time.Time) error {
 	c.Response().Header().Set("X-Token", token)
 	fileURL := h.expManager.Config.BaseURL + filename
