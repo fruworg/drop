@@ -36,33 +36,37 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	configData, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Configuration:\n%s", string(configData))
-
 	err = setup(cfg)
 	if err != nil {
 		return nil, err
 	}
-
 	db, err := db.NewDB(cfg)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
 		return nil, err
 	}
-
 	expirationManager, err := expiration.NewExpirationManager(cfg, db)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
 		return nil, err
 	}
-
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+
+	// Configure timeouts for large file uploads
+	e.Server.ReadTimeout = 10 * time.Minute       // Time to read the entire request
+	e.Server.WriteTimeout = 10 * time.Minute      // Time to write the response
+	e.Server.IdleTimeout = 15 * time.Minute       // Time to keep connections alive
+	e.Server.ReadHeaderTimeout = 30 * time.Second // Time to read headers only
+
+	log.Printf("Server timeouts configured: Read=%v, Write=%v, Idle=%v",
+		e.Server.ReadTimeout, e.Server.WriteTimeout, e.Server.IdleTimeout)
 
 	app := &App{
 		server:            e,
@@ -76,7 +80,6 @@ func New() (*App, error) {
 	e.Use(middie.SecurityHeaders())
 
 	registerRoutes(e, app)
-
 	return app, nil
 }
 
