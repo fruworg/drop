@@ -31,7 +31,8 @@ RUN mkdir -p /data /uploads /config && chown -R ${PUID}:${PGID} /data /uploads /
 
 WORKDIR /app
 COPY --from=builder /app/drop /app/drop
-COPY config/config.json /app/config/config.json
+# Copy the default YAML config (edit as needed or override with CONFIG_PATH env var)
+COPY config/config.yaml /app/config/config.yaml
 
 WORKDIR /
 VOLUME ["/uploads", "/config", "/data"]
