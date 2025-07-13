@@ -1,11 +1,9 @@
-// Modified file_access.go with the fix for preview bots
-// This version uses a configurable list of preview bots
-
 package handler
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -45,13 +43,32 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 	// Set response headers
 	h.setResponseHeaders(c, meta)
 
-	contentDisposition := c.Response().Header().Get("Content-Disposition")
-
-	if strings.Contains(contentDisposition, "inline") {
-		err = c.Inline(filePath, meta.OriginalName)
-	} else {
-		err = c.Attachment(filePath, meta.OriginalName)
+	// Open the file for reading
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("Error: Failed to open file for download: %v", err)
+		return c.String(http.StatusInternalServerError, "Failed to open file")
 	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Failed to stat file")
+	}
+
+	// Set Content-Disposition header if not already set
+	contentDisposition := c.Response().Header().Get("Content-Disposition")
+	if contentDisposition == "" {
+		if shouldDisplayInline(meta.ContentType) {
+			c.Response().Header().Set("Content-Disposition", "inline; filename=\""+meta.OriginalName+"\"")
+		} else {
+			c.Response().Header().Set("Content-Disposition", "attachment; filename=\""+meta.OriginalName+"\"")
+		}
+	}
+
+	log.Printf("File served: %s (%s) to %s", meta.OriginalName, formatBytes(fileInfo.Size()), c.RealIP())
+	c.Response().WriteHeader(http.StatusOK)
+	_, err = io.Copy(c.Response(), file)
 
 	if err == nil && meta.OneTimeView {
 		err = h.deleteOneTimeViewFile(filePath, meta)

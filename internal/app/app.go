@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
@@ -33,11 +34,14 @@ type App struct {
 
 // New creates a new application instance
 func New() (*App, error) {
-	cfg, err := config.LoadConfig()
+	configPath := os.Getenv("CONFIG_PATH")
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
 	configData, err := json.MarshalIndent(cfg, "", "  ")
+
+	spew.Dump(configData)
 	if err != nil {
 		return nil, err
 	}

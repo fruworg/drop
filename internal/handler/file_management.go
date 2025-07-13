@@ -62,17 +62,19 @@ func (h *Handler) validateManagementToken(c echo.Context, filePath string) (mode
 
 	token := c.FormValue("token")
 	if token == "" {
+		log.Printf("Missing management token for %s by %s", filePath, c.RealIP())
 		return meta, c.String(http.StatusBadRequest, "Missing management token")
 	}
 
 	var err error
 	meta, err = h.db.GetMetadataByID(filePath)
 	if err != nil {
-		log.Printf("Warning: Failed to get metadata for %s: %v", filepath.Base(filePath), err)
+		log.Printf("Warning: Failed to get metadata for %s by %s: %v", filepath.Base(filePath), c.RealIP(), err)
 		return meta, c.String(http.StatusInternalServerError, "Failed to get metadata")
 	}
 
 	if meta.Token != token {
+		log.Printf("Invalid management token for %s by %s", filePath, c.RealIP())
 		return meta, c.String(http.StatusUnauthorized, "Invalid management token")
 	}
 
@@ -82,14 +84,15 @@ func (h *Handler) validateManagementToken(c echo.Context, filePath string) (mode
 // handleFileDelete handles the file deletion operation
 func (h *Handler) handleFileDelete(c echo.Context, filePath string, meta model.FileMetadata) error {
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		log.Printf("Error: Failed to delete file %s: %v", filePath, err)
+		log.Printf("Error: Failed to delete file %s for user %s: %v", filePath, c.RealIP(), err)
 		return c.String(http.StatusInternalServerError, "Failed to delete file")
 	}
 
 	if err := h.db.DeleteMetadata(&meta); err != nil {
-		log.Printf("Warning: Failed to delete metadata for %s: %v", filePath, err)
+		log.Printf("Warning: Failed to delete metadata for %s by user %s: %v", filePath, c.RealIP(), err)
 	}
 
+	log.Printf("File deleted: %s by %s", filePath, c.RealIP())
 	return c.String(http.StatusOK, "File deleted successfully")
 }
 
@@ -97,15 +100,17 @@ func (h *Handler) handleFileDelete(c echo.Context, filePath string, meta model.F
 func (h *Handler) handleExpirationUpdate(c echo.Context, expiresStr string, meta model.FileMetadata) error {
 	expirationDate, err := utils.ParseExpirationTime(expiresStr)
 	if err != nil {
+		log.Printf("Invalid expiration format for %s by %s: %v", meta.FilePath, c.RealIP(), err)
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
 	}
 
 	meta.ExpiresAt = expirationDate
 
 	if err = h.db.StoreMetadata(&meta); err != nil {
-		log.Printf("Error: Failed to update metadata: %v", err)
+		log.Printf("Error: Failed to update expiration for %s by %s: %v", meta.FilePath, c.RealIP(), err)
 		return c.String(http.StatusInternalServerError, "Failed to update expiration")
 	}
 
+	log.Printf("Expiration updated: %s to %v by %s", meta.FilePath, expirationDate, c.RealIP())
 	return c.String(http.StatusOK, "Expiration updated successfully")
 }

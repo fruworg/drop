@@ -1,57 +1,48 @@
 package config
 
 import (
-	"encoding/json"
-	"os"
-	"strconv"
-)
-
-// Constants for default paths
-const (
-	defaultUploadPath = "./uploads"
-	configPath        = "./config/config.json"
-)
-
-// Constants for upload settings
-const (
-	maxUploadSize   = 100 * 1024 * 1024 // 100MB
-	defaultIDLength = 4
-	defaultPort     = 3000
-)
-
-// Environment variable names
-const (
-	envPort = "PORT"
+	"github.com/spf13/viper"
 )
 
 // Config represents the application configuration
+// All fields can be set via config file or environment variables.
 type Config struct {
-	Port                     int      `json:"port"`                       // Port to listen on
-	MinAge                   int      `json:"min_age_days"`               // Minimum retention in days
-	MaxAge                   int      `json:"max_age_days"`               // Maximum retention in days
-	MaxSize                  float64  `json:"max_size_mib"`               // Maximum file size in MiB
-	UploadPath               string   `json:"upload_path"`                // Path to uploaded files
-	CheckInterval            int      `json:"check_interval_min"`         // How often to check for expired files (minutes)
-	ExpirationManagerEnabled bool     `json:"expiration_manager_enabled"` // Whether expiration is enabled
-	BaseURL                  string   `json:"base_url"`                   // Base URL for links
-	SQLitePath               string   `json:"sqlite_path" env:"SQLITE_PATH" envDefault:"./dump.db"`
-	IdLength                 int      `json:"id_length"`    // Length of the token
-	PreviewBots              []string `json:"preview_bots"` // List of user-agent substrings that indicate preview bots
+	Port                     int      `mapstructure:"port"`
+	MinAge                   int      `mapstructure:"min_age_days"`
+	MaxAge                   int      `mapstructure:"max_age_days"`
+	MaxSize                  float64  `mapstructure:"max_size_mib"`
+	UploadPath               string   `mapstructure:"upload_path"`
+	CheckInterval            int      `mapstructure:"check_interval_min"`
+	ExpirationManagerEnabled bool     `mapstructure:"expiration_manager_enabled"`
+	BaseURL                  string   `mapstructure:"base_url"`
+	SQLitePath               string   `mapstructure:"sqlite_path"`
+	IdLength                 int      `mapstructure:"id_length"`
+	PreviewBots              []string `mapstructure:"preview_bots"`
 }
 
-// DefaultConfig provides default config values
-var defaultConfig = Config{
-	Port:                     defaultPort, // Default port
-	MinAge:                   30,          // 30 days
-	MaxAge:                   365,         // 1 year
-	MaxSize:                  512.0,       // 512 MiB
-	UploadPath:               defaultUploadPath,
-	CheckInterval:            60, // Check once per hour
-	ExpirationManagerEnabled: true,
-	BaseURL:                  "http://localhost:3002/",
-	SQLitePath:               "/data/dump.db",
-	IdLength:                 defaultIDLength,
-	PreviewBots: []string{
+// LoadConfig loads configuration from file and environment variables using Viper.
+// If configPath is empty, it defaults to "./config/config.yaml".
+func LoadConfig(configPath string) (*Config, error) {
+	v := viper.New()
+
+	if configPath == "" {
+		configPath = "./config/config.yaml"
+	}
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+
+	// Set sensible defaults
+	v.SetDefault("port", 3000)
+	v.SetDefault("min_age_days", 30)
+	v.SetDefault("max_age_days", 365)
+	v.SetDefault("max_size_mib", 512.0)
+	v.SetDefault("upload_path", "./uploads")
+	v.SetDefault("check_interval_min", 60)
+	v.SetDefault("expiration_manager_enabled", true)
+	v.SetDefault("base_url", "http://localhost:3002/")
+	v.SetDefault("sqlite_path", "/data/dump.db")
+	v.SetDefault("id_length", 4)
+	v.SetDefault("preview_bots", []string{
 		"slack",
 		"slackbot",
 		"facebookexternalhit",
@@ -63,38 +54,18 @@ var defaultConfig = Config{
 		"telegram",
 		"skype",
 		"viber",
-	},
-}
+	})
 
-// LoadConfig loads a configuration from file and then applies any environment variable overrides
-func LoadConfig() (*Config, error) {
-	// Start with default config
-	config := defaultConfig
-
-	// Try to load from file
-	data, err := os.ReadFile(configPath)
-	if err == nil {
-		if err := json.Unmarshal(data, &config); err != nil {
-			return nil, err
-		}
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
 	}
 
-	// Apply environment variable overrides
-	applyEnvOverrides(&config)
-
-	return &config, nil
-}
-
-// applyEnvOverrides applies environment variable overrides to the configuration
-func applyEnvOverrides(config *Config) {
-	// Override port if set in environment
-	if portStr := os.Getenv(envPort); portStr != "" {
-		if port, err := strconv.Atoi(portStr); err == nil {
-			config.Port = port
-		}
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, err
 	}
 
-	// Add more environment variable overrides here as needed
+	return &cfg, nil
 }
 
 // MaxSizeToBytes converts the MaxSize from MiB to bytes

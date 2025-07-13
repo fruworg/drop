@@ -1,0 +1,44 @@
+# Example configuration for your app
+# port: TCP port the web server listens on
+port: 3000
+
+# min_age_days: Minimum file retention in days
+min_age_days: 30
+
+# max_age_days: Maximum file retention in days
+max_age_days: 365
+
+# max_size_mib: Maximum allowed upload file size in MiB
+max_size_mib: 1024
+
+# upload_path: Filesystem path where uploaded files are stored
+upload_path: ./uploads
+
+# check_interval_min: How often (in minutes) to check for expired files
+check_interval_min: 60
+
+# expiration_manager_enabled: Enable/disable automatic file expiration
+expiration_manager_enabled: true
+
+# base_url: Base URL for generating file links in responses
+base_url: "http://localhost:3000/"
+
+# sqlite_path: Path to SQLite database file for metadata
+sqlite_path: "./data/dump.db"
+
+# id_length: Length of random IDs generated for files
+id_length: 4
+
+# preview_bots: List of user-agent substrings that trigger special preview handling
+preview_bots:
+  - slack
+  - slackbot
+  - facebookexternalhit
+  - twitterbot
+  - discordbot
+  - whatsapp
+  - googlebot
+  - linkedinbot
+  - telegram
+  - skype
+  - viber

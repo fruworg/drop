@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,17 +20,29 @@ import (
 	"github.com/marianozunino/drop/internal/utils"
 )
 
+const (
+	DefaultIDLength       = 16
+	SecretIDLength        = 8
+	ProgressChunkSizeMB   = 1
+	ProgressPercentStep   = 1
+	ManagementTokenLength = 16
+)
+
+var filenameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9._-]`) // allow only safe chars
+
 // HandleUpload processes file uploads, either from a form or URL
 func (h *Handler) HandleUpload(c echo.Context) error {
 	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.cfg.MaxSizeToBytes())
 
 	if err := h.parseRequestForm(c); err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		log.Printf("[HandleUpload] Failed to parse form: %v", err)
+		return c.String(http.StatusBadRequest, "Invalid request form.")
 	}
 
 	fileInfo, err := h.extractFileContent(c)
 	if err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		log.Printf("[HandleUpload] Failed to extract file content: %v", err)
+		return c.String(http.StatusBadRequest, "Failed to extract file from request.")
 	}
 
 	if fileInfo.Size == 0 {
@@ -44,36 +57,49 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 	// Handle expiration settings
 	expirationDate, err := h.determineExpiration(c, fileInfo.Size)
 	if err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
+		log.Printf("[HandleUpload] Invalid expiration format: %v", err)
+		return c.String(http.StatusBadRequest, "Invalid expiration format.")
 	}
 
 	// Handle delete operation
 	_, oneTimeView := c.Request().Form["one_time"]
 
 	// Store metadata
-	managementToken, err := h.storeFileMetadata(fileInfo.FilePath, fileInfo.Name, fileInfo, expirationDate, oneTimeView)
+	managementToken, err := h.storeFileMetadata(fileInfo.FilePath, fileInfo.OriginalFilename, fileInfo, expirationDate, oneTimeView)
 	if err != nil {
-		log.Printf("Error: Failed to store metadata: %v", err)
+		log.Printf("[HandleUpload] Failed to store metadata: %v", err)
 		// Clean up the file if metadata storage fails
-		if err := os.Remove(fileInfo.FilePath); err != nil {
-			log.Printf("Warning: Failed to clean up file after metadata error: %v", err)
+		if removeErr := os.Remove(fileInfo.FilePath); removeErr != nil {
+			log.Printf("[HandleUpload] Failed to clean up file after metadata error: %v", removeErr)
 		}
 		return c.String(http.StatusInternalServerError, "Server error")
 	}
 
 	// Return response
-	return h.sendUploadResponse(c, fileInfo.Filename, fileInfo.Size, managementToken, expirationDate)
+	if err := h.sendUploadResponse(c, fileInfo.StoredFilename, fileInfo.Size, managementToken, expirationDate); err != nil {
+		log.Printf("[HandleUpload] Failed to send upload response: %v", err)
+		if removeErr := os.Remove(fileInfo.FilePath); removeErr != nil {
+			log.Printf("[HandleUpload] Failed to clean up file after response error: %v", removeErr)
+		}
+		return c.String(http.StatusInternalServerError, "Server error")
+	}
+
+	return nil
 }
 
 // FileInfo holds information about the uploaded file
+// FilePath: Path where file was saved
+// StoredFilename: Final filename (with extension)
+// OriginalFilename: Name as uploaded by the user
+// Size: File size in bytes
+// ContentType: MIME type
 type FileInfo struct {
-	FilePath    string // Path where file was saved
-	Filename    string // Final filename (with extension)
-	Name        string // Original filename
-	Size        int64
-	ContentType string
+	FilePath         string // Path where file was saved
+	StoredFilename   string // Final filename (with extension)
+	OriginalFilename string // Original filename from user
+	Size             int64
+	ContentType      string
 }
-
 
 func (h *Handler) extractFileContent(c echo.Context) (FileInfo, error) {
 	file, header, err := c.Request().FormFile("file")
@@ -85,65 +111,6 @@ func (h *Handler) extractFileContent(c echo.Context) (FileInfo, error) {
 	// Try URL-based upload if form upload failed
 	return h.downloadFromURL(c)
 }
-
-
-type ProgressReader struct {
-	reader    io.Reader
-	total     int64
-	current   int64
-	filename  string
-	startTime time.Time
-}
-
-func NewProgressReader(reader io.Reader, total int64, filename string) *ProgressReader {
-	return &ProgressReader{
-		reader:    reader,
-		total:     total,
-		filename:  filename,
-		startTime: time.Now(),
-	}
-}
-
-func (pr *ProgressReader) Read(p []byte) (int, error) {
-	n, err := pr.reader.Read(p)
-	pr.current += int64(n)
-
-	// Log progress every 10% or every 10MB, whichever comes first
-	if pr.total > 0 {
-		percentage := float64(pr.current) / float64(pr.total) * 100
-		if pr.current%(10*1024*1024) == 0 || // Every 10MB
-			int(percentage)%10 == 0 && pr.current > 0 { // Every 10%
-			elapsed := time.Since(pr.startTime)
-			speed := float64(pr.current) / elapsed.Seconds() / 1024 / 1024 // MB/s
-			log.Printf("Upload progress: %s - %.1f%% (%s/%s) - %.2f MB/s",
-				pr.filename, percentage, formatBytes(pr.current), formatBytes(pr.total), speed)
-		}
-	}
-
-	return n, err
-}
-
-
-func formatBytes(bytes int64) string {
-	if bytes < 1024 {
-		return fmt.Sprintf("%d B", bytes)
-	}
-
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-	size := float64(bytes)
-	unitIndex := 0
-
-	for size >= 1024 && unitIndex < len(units)-1 {
-		size /= 1024
-		unitIndex++
-	}
-
-	if size >= 10 {
-		return fmt.Sprintf("%.1f %s", size, units[unitIndex])
-	}
-	return fmt.Sprintf("%.2f %s", size, units[unitIndex])
-}
-
 
 func (h *Handler) saveFromFormFile(file io.Reader, header *multipart.FileHeader) (FileInfo, error) {
 	// Generate unique ID for the file
@@ -162,34 +129,44 @@ func (h *Handler) saveFromFormFile(file io.Reader, header *multipart.FileHeader)
 
 	filePath := filepath.Join(h.cfg.UploadPath, filename)
 
-	// Create the file
-	dst, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	// Create a temporary file in the upload directory
+	tmpFilePath := filePath + ".tmp"
+	dst, err := os.OpenFile(tmpFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
-		return FileInfo{}, fmt.Errorf("failed to create file: %w", err)
+		return FileInfo{}, fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer dst.Close()
 
-	// Wrap the reader with progress tracking
 	progressReader := NewProgressReader(file, header.Size, header.Filename)
 	log.Printf("Starting upload: %s (%s)", header.Filename, formatBytes(header.Size))
 
-	// Copy with size limit and progress tracking
 	limitedReader := io.LimitReader(progressReader, h.cfg.MaxSizeToBytes())
 	size, err := io.Copy(dst, limitedReader)
+
+	closeErr := dst.Close()
 	if err != nil {
-		os.Remove(filePath) // Clean up on error
+		os.Remove(tmpFilePath)
 		return FileInfo{}, fmt.Errorf("failed to save file: %w", err)
+	}
+	if closeErr != nil {
+		os.Remove(tmpFilePath)
+		return FileInfo{}, fmt.Errorf("failed to close file: %w", closeErr)
+	}
+
+	// Atomically rename the temp file to the final file name
+	if err := os.Rename(tmpFilePath, filePath); err != nil {
+		os.Remove(tmpFilePath)
+		return FileInfo{}, fmt.Errorf("failed to rename temp file: %w", err)
 	}
 
 	// Detect content type by reading first 512 bytes
 	contentType := h.detectContentType(filePath)
 
 	fileInfo := FileInfo{
-		FilePath:    filePath,
-		Filename:    filename,
-		Name:        header.Filename,
-		Size:        size,
-		ContentType: contentType,
+		FilePath:         filePath,
+		StoredFilename:   filename, // Use the generated unique filename
+		OriginalFilename: header.Filename,
+		Size:             size,
+		ContentType:      contentType,
 	}
 
 	elapsed := time.Since(progressReader.startTime)
@@ -198,7 +175,6 @@ func (h *Handler) saveFromFormFile(file io.Reader, header *multipart.FileHeader)
 		header.Filename, formatBytes(size), id, avgSpeed)
 	return fileInfo, nil
 }
-
 
 func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 	var fileInfo FileInfo
@@ -263,7 +239,7 @@ func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 	if err != nil {
 		os.Remove(filePath) // Clean up on error
 		log.Printf("Error: Failed to save from URL: %v", err)
-		return fileInfo, fmt.Errorf("Failed to save from URL")
+		return fileInfo, fmt.Errorf("failed to save from URL")
 	}
 
 	contentType := resp.Header.Get("Content-Type")
@@ -272,17 +248,16 @@ func (h *Handler) downloadFromURL(c echo.Context) (FileInfo, error) {
 	}
 
 	fileInfo = FileInfo{
-		FilePath:    filePath,
-		Filename:    filename,
-		Name:        originalName,
-		Size:        size,
-		ContentType: contentType,
+		FilePath:         filePath,
+		StoredFilename:   filename,
+		OriginalFilename: originalName,
+		Size:             size,
+		ContentType:      contentType,
 	}
 
 	log.Printf("✓ Download completed: %s (%d bytes) with ID: %s", originalName, size, id)
 	return fileInfo, nil
 }
-
 
 func (h *Handler) detectContentType(filePath string) string {
 	file, err := os.Open(filePath)
@@ -300,7 +275,6 @@ func (h *Handler) detectContentType(filePath string) string {
 	return http.DetectContentType(buffer[:n])
 }
 
-
 func (h *Handler) checkContentLength(resp *http.Response, maxSize int64) error {
 	contentLength := resp.Header.Get("Content-Length")
 	if contentLength != "" {
@@ -313,7 +287,6 @@ func (h *Handler) checkContentLength(resp *http.Response, maxSize int64) error {
 	}
 	return nil
 }
-
 
 func (h *Handler) extractFilenameFromURL(url string) string {
 	fileName := "download"
@@ -330,14 +303,12 @@ func (h *Handler) extractFilenameFromURL(url string) string {
 	return fileName
 }
 
-
 func (h *Handler) generateFileID(useSecretId bool) (string, error) {
 	if useSecretId {
 		return generateID(8)
 	}
 	return generateID(h.cfg.IdLength)
 }
-
 
 func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time, error) {
 	expiresStr := c.FormValue("expires")
@@ -370,7 +341,6 @@ func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time
 	return expirationDate, nil
 }
 
-
 func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time, oneTimeView bool) (string, error) {
 	managementToken, err := generateID(16)
 	if err != nil {
@@ -399,7 +369,6 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 	return managementToken, nil
 }
 
-
 func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize int64, token string, expirationDate time.Time) error {
 	c.Response().Header().Set("X-Token", token)
 	fileURL := h.expManager.Config.BaseURL + filename
@@ -418,7 +387,7 @@ func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize i
 
 		if !expirationDate.IsZero() {
 			response["expires_at"] = expirationDate
-			days := int(expirationDate.Sub(time.Now()).Hours() / 24)
+			days := int(time.Until(expirationDate).Hours() / 24)
 			response["expires_in_days"] = days
 		}
 
