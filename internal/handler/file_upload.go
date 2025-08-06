@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/labstack/echo/v4"
 	"github.com/marianozunino/drop/internal/model"
 	"github.com/marianozunino/drop/internal/utils"
@@ -271,8 +272,13 @@ func (h *Handler) detectContentType(filePath string) string {
 	if err != nil && err != io.EOF {
 		return "application/octet-stream"
 	}
+	mtype := mimetype.Detect(buffer[:n])
 
-	return http.DetectContentType(buffer[:n])
+	if mtype.String() == "" {
+		return "application/octet-stream"
+	}
+
+	return mtype.String()
 }
 
 func (h *Handler) checkContentLength(resp *http.Response, maxSize int64) error {
