@@ -8,9 +8,20 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Build client binaries first (these rarely change)
+COPY cmd/client/ ./cmd/client/
+RUN mkdir -p /app/binaries
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/binaries/drop-linux-amd64 ./cmd/client
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o /app/binaries/drop-linux-arm64 ./cmd/client
+RUN CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o /app/binaries/drop-darwin-amd64 ./cmd/client
+RUN CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o /app/binaries/drop-darwin-arm64 ./cmd/client
+RUN CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o /app/binaries/drop-windows-amd64.exe ./cmd/client
+RUN chmod +x /app/binaries/*
+
+# Build server (this changes more frequently)
 COPY . .
 RUN go run github.com/a-h/templ/cmd/templ generate
-
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /app/drop ./cmd/drop
 RUN chmod +x /app/drop && ls -la /app/drop
 
@@ -31,6 +42,7 @@ RUN mkdir -p /data /uploads /config && chown -R ${PUID}:${PGID} /data /uploads /
 
 WORKDIR /app
 COPY --from=builder /app/drop /app/drop
+COPY --from=builder /app/binaries /app/binaries
 # Copy the default YAML config (edit as needed or override with CONFIG_PATH env var)
 COPY config/config.yaml /app/config/config.yaml
 

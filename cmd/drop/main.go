@@ -24,7 +24,8 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	log.Printf("")
+	log.Printf("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -33,5 +34,5 @@ func main() {
 		log.Fatalf("Server shutdown error: %v", err)
 	}
 
-	log.Println("Server shutdown complete")
+	log.Printf("Server shutdown complete")
 }

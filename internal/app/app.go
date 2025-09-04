@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
@@ -32,6 +30,57 @@ type App struct {
 	db                *db.DB
 }
 
+// formatBytes returns a human-readable byte count
+func formatBytes(bytes int64) string {
+	if bytes < 1024 {
+		return fmt.Sprintf("%d B", bytes)
+	}
+
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+	size := float64(bytes)
+	unitIndex := 0
+
+	for size >= 1024 && unitIndex < len(units)-1 {
+		size /= 1024
+		unitIndex++
+	}
+
+	if size >= 10 {
+		return fmt.Sprintf("%.1f %s", size, units[unitIndex])
+	}
+	return fmt.Sprintf("%.2f %s", size, units[unitIndex])
+}
+
+// logConfiguration formats and logs the configuration in a human-readable way
+func logConfiguration(cfg *config.Config) {
+	log.Printf("Drop File Upload Service - Configuration:")
+	log.Printf("  Server Port: %d", cfg.Port)
+	log.Printf("  Upload Directory: %s", cfg.UploadPath)
+	log.Printf("  Database Path: %s", cfg.SQLitePath)
+	log.Printf("  Base URL: %s", cfg.BaseURL)
+	log.Printf("")
+	log.Printf("File Settings:")
+	log.Printf("  Max File Size: %s (%.0f MiB)", formatBytes(cfg.MaxSizeToBytes()), cfg.MaxSize)
+	log.Printf("  Chunk Size: %s (%.0f MiB)", formatBytes(cfg.ChunkSizeToBytes()), cfg.ChunkSize)
+	log.Printf("  ID Length: %d characters", cfg.IdLength)
+	log.Printf("")
+	log.Printf("Expiration Settings:")
+	log.Printf("  Min Retention: %d days", cfg.MinAge)
+	log.Printf("  Max Retention: %d days", cfg.MaxAge)
+	log.Printf("  Check Interval: %d minutes", cfg.CheckInterval)
+	log.Printf("  Expiration Manager: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.ExpirationManagerEnabled])
+	log.Printf("")
+	log.Printf("Preview Bots (%d configured):", len(cfg.PreviewBots))
+	for i, bot := range cfg.PreviewBots {
+		if i < 5 {
+			log.Printf("  - %s", bot)
+		} else if i == 5 {
+			log.Printf("  - ... and %d more", len(cfg.PreviewBots)-5)
+			break
+		}
+	}
+}
+
 // New creates a new application instance
 func New() (*App, error) {
 	configPath := os.Getenv("CONFIG_PATH")
@@ -39,39 +88,34 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	configData, err := json.MarshalIndent(cfg, "", "  ")
 
-	spew.Dump(configData)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("Configuration:\n%s", string(configData))
+	logConfiguration(cfg)
+
 	err = setup(cfg)
 	if err != nil {
 		return nil, err
 	}
+
 	db, err := db.NewDB(cfg)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
+		log.Printf("Failed to initialize database: %v", err)
 		return nil, err
 	}
+
 	expirationManager, err := expiration.NewExpirationManager(cfg, db)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize expiration manager: %v", err)
+		log.Printf("Failed to initialize expiration manager: %v", err)
 		return nil, err
 	}
+
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
 
-	// Configure timeouts for large file uploads
-	e.Server.ReadTimeout = 10 * time.Minute       // Time to read the entire request
-	e.Server.WriteTimeout = 10 * time.Minute      // Time to write the response
-	e.Server.IdleTimeout = 15 * time.Minute       // Time to keep connections alive
-	e.Server.ReadHeaderTimeout = 30 * time.Second // Time to read headers only
-
-	log.Printf("Server timeouts configured: Read=%v, Write=%v, Idle=%v",
-		e.Server.ReadTimeout, e.Server.WriteTimeout, e.Server.IdleTimeout)
+	e.Server.ReadTimeout = 10 * time.Minute
+	e.Server.WriteTimeout = 10 * time.Minute
+	e.Server.IdleTimeout = 15 * time.Minute
+	e.Server.ReadHeaderTimeout = 30 * time.Second
 
 	app := &App{
 		server:            e,
@@ -80,7 +124,7 @@ func New() (*App, error) {
 		db:                db,
 	}
 
-	e.Use(middleware.Logger())
+	e.Use(humanLogger())
 	e.Use(middleware.Recover())
 	e.Use(middie.SecurityHeaders())
 
@@ -88,13 +132,28 @@ func New() (*App, error) {
 	return app, nil
 }
 
+// humanLogger creates a human-friendly logger middleware
+func humanLogger() echo.MiddlewareFunc {
+	return middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "${time_rfc3339} | ${method} ${uri} | ${status} | ${latency_human} | ${bytes_in_human}\n",
+		Output: os.Stdout,
+	})
+}
+
 // Start starts the application
 func (a *App) Start() {
+	log.Printf("")
+	log.Printf("Starting services...")
+
 	if a.expirationManager != nil {
 		a.expirationManager.Start()
 	}
 
 	serverAddr := fmt.Sprintf(":%d", a.config.Port)
+	fullURL := fmt.Sprintf("http://localhost%s", serverAddr)
+
+	log.Printf("Starting HTTP server on %s", serverAddr)
+	log.Printf("")
 
 	go func() {
 		if err := a.server.Start(serverAddr); err != nil {
@@ -102,14 +161,21 @@ func (a *App) Start() {
 		}
 	}()
 
-	log.Printf("Server started on %s", serverAddr)
+	log.Printf("Drop File Upload Service is now running!")
+	log.Printf("  Ready to accept uploads at: %s", fullURL)
+	log.Printf("")
 }
 
 // Stop stops all application services
 func (a *App) Stop() {
+	log.Printf("Stopping services...")
+
 	if a.expirationManager != nil {
 		a.expirationManager.Stop()
+		log.Printf("Expiration manager stopped")
 	}
+
+	log.Printf("All services stopped")
 }
 
 // Shutdown gracefully shuts down the server
@@ -137,7 +203,21 @@ func registerRoutes(e *echo.Echo, app *App) {
 
 	// Define routes
 	e.GET("/", h.HandleHome)
+	e.GET("/chunked", h.HandleChunkedUpload)
 	e.POST("/", h.HandleUpload)
+
+	// Chunked upload routes
+	e.POST("/upload/init", h.InitiateChunkedUpload)
+	e.POST("/upload/chunk/:upload_id/:chunk", h.UploadChunk)
+	e.GET("/upload/status/:upload_id", h.GetUploadStatus)
+
+	// Upload statistics
+	e.GET("/stats", h.HandleUploadStats)
+
+	// Binary serving routes
+	e.GET("/binaries/:platform", h.HandleBinaryDownload)
+	e.GET("/binaries", h.HandleBinaryList)
+	e.GET("/download", h.HandleBinaryAutoDetect)
 
 	e.GET("/favicon.ico", func(c echo.Context) error {
 		if favicon == nil {

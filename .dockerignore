@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (local builds)
+drop
+drop-client
+*.exe
+
+# Test files
+*_test.go
+test/
+tests/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Node modules (if any)
+node_modules/
+
+# Coverage reports
+coverage/
+*.out
+
+# Scripts (not needed in container)
+scripts/
+*.sh
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Local data
+data/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# Config files (will be copied separately)
+# Note: config/config.yaml is needed for the Docker build

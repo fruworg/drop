@@ -17,7 +17,9 @@ type Config struct {
 	BaseURL                  string   `mapstructure:"base_url"`
 	SQLitePath               string   `mapstructure:"sqlite_path"`
 	IdLength                 int      `mapstructure:"id_length"`
+	ChunkSize                float64  `mapstructure:"chunk_size_mib"`
 	PreviewBots              []string `mapstructure:"preview_bots"`
+	StreamingBufferSize      int      `mapstructure:"streaming_buffer_size_kb"`
 }
 
 // LoadConfig loads configuration from file and environment variables using Viper.
@@ -42,6 +44,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	v.SetDefault("base_url", "http://localhost:3002/")
 	v.SetDefault("sqlite_path", "/data/dump.db")
 	v.SetDefault("id_length", 4)
+	v.SetDefault("chunk_size_mib", 4.0)
 	v.SetDefault("preview_bots", []string{
 		"slack",
 		"slackbot",
@@ -55,6 +58,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		"skype",
 		"viber",
 	})
+	v.SetDefault("streaming_buffer_size_kb", 64)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
@@ -71,4 +75,14 @@ func LoadConfig(configPath string) (*Config, error) {
 // MaxSizeToBytes converts the MaxSize from MiB to bytes
 func (c *Config) MaxSizeToBytes() int64 {
 	return int64(c.MaxSize * 1024 * 1024)
+}
+
+// ChunkSizeToBytes converts the ChunkSize from MiB to bytes
+func (c *Config) ChunkSizeToBytes() int64 {
+	return int64(c.ChunkSize * 1024 * 1024)
+}
+
+// StreamingBufferSizeToBytes converts the StreamingBufferSize from KB to bytes
+func (c *Config) StreamingBufferSizeToBytes() int {
+	return c.StreamingBufferSize * 1024
 }

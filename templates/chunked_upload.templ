@@ -1,0 +1,380 @@
+package templates
+
+import "github.com/marianozunino/drop/internal/config"
+
+templ ChunkedUploadPage(config config.Config) {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Chunked Upload - Drop</title>
+		<style>
+			pre {
+				white-space: pre;
+				font-family: monospace;
+				line-height: 1.2;
+				overflow-x: auto;
+			}
+			.upload-area {
+				border: 2px dashed #ccc;
+				padding: 20px;
+				text-align: center;
+				margin: 20px 0;
+				cursor: pointer;
+				position: relative;
+			}
+			.upload-area:hover {
+				background-color: #f5f5f5;
+			}
+			.upload-area.dragover {
+				background-color: #e0f0ff;
+				border-color: #0066cc;
+			}
+			.progress {
+				margin: 20px 0;
+				display: none;
+			}
+			.progress-bar {
+				width: 100%;
+				height: 20px;
+				background-color: #f0f0f0;
+				border: 1px solid #ccc;
+			}
+			.progress-fill {
+				height: 100%;
+				background-color: #0066cc;
+				width: 0%;
+				transition: width 0.3s;
+			}
+			.status {
+				margin: 10px 0;
+				padding: 10px;
+				border-radius: 4px;
+				display: none;
+			}
+			.status.success {
+				background-color: #d4edda;
+				border: 1px solid #c3e6cb;
+				color: #155724;
+			}
+			.status.error {
+				background-color: #f8d7da;
+				border: 1px solid #f5c6cb;
+				color: #721c24;
+			}
+			.status.info {
+				background-color: #d1ecf1;
+				border: 1px solid #bee5eb;
+				color: #0c5460;
+			}
+			.result {
+				margin: 20px 0;
+				padding: 15px;
+				background-color: #f8f9fa;
+				border: 1px solid #e9ecef;
+				display: none;
+			}
+			.file-url {
+				font-family: monospace;
+				background-color: white;
+				padding: 10px;
+				border: 1px solid #ddd;
+				word-break: break-all;
+			}
+			button {
+				background-color: #0066cc;
+				color: white;
+				border: none;
+				padding: 8px 16px;
+				cursor: pointer;
+				margin: 5px;
+			}
+			button:hover {
+				background-color: #0052a3;
+			}
+			.hidden {
+				display: none;
+				position: absolute;
+				left: -9999px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Chunked Upload</h1>
+		<p>Upload large files with resume capability and progress tracking.</p>
+		
+		<div class="upload-area" id="uploadArea">
+			<p><strong>Drop a file here or click to select</strong></p>
+			<input type="file" id="fileInput" class="hidden">
+		</div>
+
+		<div class="progress" id="progress">
+			<p><strong>Uploading: <span id="fileName"></span></strong></p>
+			<div class="progress-bar">
+				<div class="progress-fill" id="progressFill"></div>
+			</div>
+			<p><span id="progressText">0%</span> (<span id="uploadedSize">0 B</span> / <span id="totalSize">0 B</span>)</p>
+		</div>
+
+		<div class="status" id="status"></div>
+
+		<div class="result" id="result">
+			<h3>✅ Upload Complete!</h3>
+			<p>Your file is available at:</p>
+			<div class="file-url" id="fileUrl"></div>
+			<button id="copyBtn">Copy URL</button>
+			<div id="md5Info" style="margin-top: 15px; padding: 10px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 4px; display: none;">
+				<p><strong>MD5 Hash:</strong> <span id="md5Hash" style="font-family: monospace; background-color: white; padding: 5px; border: 1px solid #ddd;"></span></p>
+				<p style="font-size: 0.9em; color: #666; margin-top: 5px;">Use this hash to verify file integrity or detect duplicates.</p>
+			</div>
+		</div>
+
+		<p><a href="/">← Back to Home</a></p>
+
+		<script>
+			class SimpleChunkedUploader {
+				constructor() {
+					this.chunkSize = 4 * 1024 * 1024; // 4MB chunks (matching server config)
+					this.uploadId = null;
+					this.totalChunks = 0;
+					this.uploadedChunks = new Set();
+					this.currentFile = null;
+					this.baseUrl = window.location.origin;
+					
+					this.initializeElements();
+					this.bindEvents();
+				}
+
+				initializeElements() {
+					this.uploadArea = document.getElementById('uploadArea');
+					this.fileInput = document.getElementById('fileInput');
+					this.progress = document.getElementById('progress');
+					this.fileName = document.getElementById('fileName');
+					this.progressFill = document.getElementById('progressFill');
+					this.progressText = document.getElementById('progressText');
+					this.uploadedSize = document.getElementById('uploadedSize');
+					this.totalSize = document.getElementById('totalSize');
+					this.status = document.getElementById('status');
+					this.result = document.getElementById('result');
+					this.fileUrl = document.getElementById('fileUrl');
+					this.copyBtn = document.getElementById('copyBtn');
+					this.md5Info = document.getElementById('md5Info');
+					this.md5Hash = document.getElementById('md5Hash');
+				}
+
+				bindEvents() {
+									// Drag and drop events
+				this.uploadArea.addEventListener('dragover', (e) => {
+					e.preventDefault();
+					this.uploadArea.classList.add('dragover');
+					console.log('Drag over detected');
+				});
+
+				this.uploadArea.addEventListener('dragleave', (e) => {
+					e.preventDefault();
+					this.uploadArea.classList.remove('dragover');
+					console.log('Drag leave detected');
+				});
+
+				this.uploadArea.addEventListener('drop', (e) => {
+					e.preventDefault();
+					this.uploadArea.classList.remove('dragover');
+					const files = e.dataTransfer.files;
+					console.log('Drop detected with files:', files);
+					if (files.length > 0) {
+						this.handleFile(files[0]);
+					}
+				});
+
+									// Click to select file
+				this.uploadArea.addEventListener('click', (e) => {
+					// Prevent triggering if clicking on the file input itself
+					if (e.target !== this.fileInput) {
+						this.fileInput.click();
+					}
+				});
+
+									// File input change
+				this.fileInput.addEventListener('change', (e) => {
+					console.log('File input changed:', e.target.files);
+					if (e.target.files.length > 0) {
+						this.handleFile(e.target.files[0]);
+					}
+				});
+
+					// Copy button
+					this.copyBtn.addEventListener('click', () => {
+						this.copyToClipboard(this.fileUrl.textContent);
+					});
+				}
+
+				async handleFile(file) {
+					this.currentFile = file;
+					this.resetUI();
+					this.showProgress();
+					this.updateFileInfo(file);
+
+					try {
+						await this.initializeUpload(file);
+						await this.uploadChunks(file);
+					} catch (error) {
+						this.showStatus(`Upload failed: ${error.message}`, 'error');
+					}
+				}
+
+				async initializeUpload(file) {
+					const formData = new FormData();
+					formData.append('filename', file.name);
+					formData.append('size', file.size);
+					formData.append('chunk_size', this.chunkSize);
+
+					const response = await fetch(`${this.baseUrl}/upload/init`, {
+						method: 'POST',
+						body: formData
+					});
+
+					if (!response.ok) {
+						const error = await response.json();
+						throw new Error(error.error || 'Failed to initialize upload');
+					}
+
+					const data = await response.json();
+					this.uploadId = data.upload_id;
+					this.totalChunks = data.total_chunks;
+					this.uploadedChunks = new Set(data.uploaded_chunks || []);
+
+					this.showStatus(`Upload initialized. Total chunks: ${this.totalChunks}`, 'info');
+				}
+
+				async uploadChunks(file) {
+					for (let i = 0; i < this.totalChunks; i++) {
+						// Skip already uploaded chunks
+						if (this.uploadedChunks.has(i)) {
+							this.updateProgress();
+							continue;
+						}
+
+						const start = i * this.chunkSize;
+						const end = Math.min(start + this.chunkSize, file.size);
+						const chunk = file.slice(start, end);
+
+						await this.uploadChunk(i, chunk);
+						this.uploadedChunks.add(i);
+						this.updateProgress();
+					}
+
+					// Upload should be complete now
+					this.showStatus('Upload completed successfully!', 'success');
+					this.showResult();
+				}
+
+				async uploadChunk(chunkIndex, chunk) {
+					const formData = new FormData();
+					formData.append('chunk', chunk);
+
+					const response = await fetch(`${this.baseUrl}/upload/chunk/${this.uploadId}/${chunkIndex}`, {
+						method: 'POST',
+						body: formData
+					});
+
+					if (!response.ok) {
+						const error = await response.json();
+						throw new Error(error.error || `Failed to upload chunk ${chunkIndex}`);
+					}
+
+					const data = await response.json();
+					
+					// Check if upload is complete
+					if (data.progress === 100) {
+						this.fileUrl.textContent = data.file_url;
+						// Display MD5 hash if available
+						if (data.md5) {
+							this.md5Hash.textContent = data.md5;
+							this.md5Info.style.display = 'block';
+						}
+						return;
+					}
+				}
+
+				updateProgress() {
+					const progress = Math.round((this.uploadedChunks.size / this.totalChunks) * 100);
+					this.progressText.textContent = `${progress}%`;
+					this.progressFill.style.width = `${progress}%`;
+
+					const uploadedBytes = this.uploadedChunks.size * this.chunkSize;
+					this.uploadedSize.textContent = this.formatBytes(uploadedBytes);
+				}
+
+				updateFileInfo(file) {
+					this.fileName.textContent = file.name;
+					this.totalSize.textContent = this.formatBytes(file.size);
+				}
+
+				formatBytes(bytes) {
+					if (bytes === 0) return '0 B';
+					const k = 1024;
+					const sizes = ['B', 'KB', 'MB', 'GB'];
+					const i = Math.floor(Math.log(bytes) / Math.log(k));
+					return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+				}
+
+				showProgress() {
+					this.progress.style.display = 'block';
+					this.result.style.display = 'none';
+				}
+
+				showResult() {
+					this.progress.style.display = 'none';
+					this.result.style.display = 'block';
+				}
+
+				showStatus(message, type) {
+					this.status.textContent = message;
+					this.status.className = `status ${type}`;
+					this.status.style.display = 'block';
+				}
+
+				resetUI() {
+					this.progress.style.display = 'none';
+					this.result.style.display = 'none';
+					this.status.style.display = 'none';
+					this.md5Info.style.display = 'none';
+					this.progressFill.style.width = '0%';
+					this.progressText.textContent = '0%';
+					this.uploadedSize.textContent = '0 B';
+					this.totalSize.textContent = '0 B';
+				}
+
+				async copyToClipboard(text) {
+					try {
+						await navigator.clipboard.writeText(text);
+						this.copyBtn.textContent = 'Copied!';
+						setTimeout(() => {
+							this.copyBtn.textContent = 'Copy URL';
+						}, 2000);
+					} catch (err) {
+						// Fallback for older browsers
+						const textArea = document.createElement('textarea');
+						textArea.value = text;
+						document.body.appendChild(textArea);
+						textArea.select();
+						document.execCommand('copy');
+						document.body.removeChild(textArea);
+						
+						this.copyBtn.textContent = 'Copied!';
+						setTimeout(() => {
+							this.copyBtn.textContent = 'Copy URL';
+						}, 2000);
+					}
+				}
+			}
+
+			// Initialize the uploader when the page loads
+			document.addEventListener('DOMContentLoaded', () => {
+				new SimpleChunkedUploader();
+			});
+		</script>
+	</body>
+	</html>
+}

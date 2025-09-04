@@ -29,6 +29,9 @@ sqlite_path: "./data/dump.db"
 # id_length: Length of random IDs generated for files
 id_length: 4
 
+# chunk_size_mib: Size of chunks for chunked uploads in MiB
+chunk_size_mib: 4
+
 # preview_bots: List of user-agent substrings that trigger special preview handling
 preview_bots:
   - slack
@@ -42,3 +45,6 @@ preview_bots:
   - telegram
   - skype
   - viber
+
+# streaming_buffer_size_kb: Buffer size for streaming file content (in KB)
+streaming_buffer_size_kb: 64

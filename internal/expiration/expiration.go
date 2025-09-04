@@ -49,7 +49,6 @@ func (m *ExpirationManager) Start() {
 			}
 		}
 	}()
-	log.Printf("Expiration manager started, checking every %d minutes", m.Config.CheckInterval)
 }
 
 // Stop halts the expiration checking process
@@ -62,24 +61,23 @@ func (m *ExpirationManager) calculateRetention(fileSize float64) time.Duration {
 	// Convert file size to MiB
 	fileSizeMiB := fileSize / (1024 * 1024)
 
-	// If file is smaller than max size, use max age (longer retention)
-	if fileSizeMiB <= m.Config.MaxSize {
-		return time.Duration(m.Config.MaxAge) * 24 * time.Hour
-	}
-
-	// Apply the formula:
+	// Apply the documented formula:
 	// retention = min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3)
-	// NOTE: This formula decreases retention as file size increases
+	// This creates a curve where:
+	// - Small files (file_size < max_size) get longer retention (closer to max_age)
+	// - Large files (file_size > max_size) get shorter retention (closer to min_age)
 	fileSizeRatio := fileSizeMiB/m.Config.MaxSize - 1
 	ageDiff := float64(m.Config.MinAge - m.Config.MaxAge)
 	additionalDays := ageDiff * math.Pow(fileSizeRatio, 3)
 
-	// Calculate total days, which will be less than min_age for large files
+	// Calculate total days
 	totalDays := float64(m.Config.MinAge) + additionalDays
 
-	// Ensure we don't go below min_age (the minimum retention period)
+	// Clamp to valid range: min_age <= retention <= max_age
 	if totalDays < float64(m.Config.MinAge) {
 		totalDays = float64(m.Config.MinAge)
+	} else if totalDays > float64(m.Config.MaxAge) {
+		totalDays = float64(m.Config.MaxAge)
 	}
 
 	return time.Duration(totalDays) * 24 * time.Hour

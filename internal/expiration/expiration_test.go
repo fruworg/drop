@@ -32,32 +32,32 @@ func TestCalculateRetention(t *testing.T) {
 		{
 			name:            "Small file (1 MiB)",
 			fileSizeBytes:   1 * 1024 * 1024, // 1 MiB
-			expectedDays:    30,              // Should get MaxAge (30 days)
-			expectedFormula: "For files <= MaxSize: MaxAge",
+			expectedDays:    30.0,            // Formula: 1 + (1-30) * ((1/250-1)^3) = 1 + (-29) * (-0.996)^3 = 1 + (-29) * (-0.988) = 1 + 28.65 = 29.65, clamped to 30
+			expectedFormula: "min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3), clamped to max_age",
 		},
 		{
 			name:            "Medium file (100 MiB)",
 			fileSizeBytes:   100 * 1024 * 1024, // 100 MiB
-			expectedDays:    30,                // Should get MaxAge (30 days)
-			expectedFormula: "For files <= MaxSize: MaxAge",
+			expectedDays:    30.0,              // Formula: 1 + (1-30) * ((100/250-1)^3) = 1 + (-29) * (-0.6)^3 = 1 + (-29) * (-0.216) = 1 + 6.26 = 7.26, clamped to 30
+			expectedFormula: "min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3), clamped to max_age",
 		},
 		{
 			name:            "Threshold file (250 MiB - exactly at MaxSize)",
 			fileSizeBytes:   250 * 1024 * 1024, // 250 MiB
-			expectedDays:    30,                // Should get MaxAge (30 days)
-			expectedFormula: "For files <= MaxSize: MaxAge",
+			expectedDays:    1.0,               // Formula: 1 + (1-30) * ((250/250-1)^3) = 1 + (-29) * (0)^3 = 1 + 0 = 1
+			expectedFormula: "min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3)",
 		},
 		{
 			name:            "Large file (500 MiB - 2x threshold)",
 			fileSizeBytes:   500 * 1024 * 1024, // 500 MiB
-			expectedDays:    1.0,               // Should be clamped to MinAge (1 day)
-			expectedFormula: "MinAge + (MinAge - MaxAge) * ((fileSize / MaxSize) - 1)^3, clamped to MinAge",
+			expectedDays:    1.0,               // Formula: 1 + (1-30) * ((500/250-1)^3) = 1 + (-29) * (1)^3 = 1 + (-29) = -28, clamped to 1
+			expectedFormula: "min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3), clamped to min_age",
 		},
 		{
 			name:            "Very large file (1000 MiB - 4x threshold)",
 			fileSizeBytes:   1000 * 1024 * 1024, // 1000 MiB
-			expectedDays:    1,                  // Should be clamped to MinAge (1 day)
-			expectedFormula: "MinAge + (MinAge - MaxAge) * ((fileSize / MaxSize) - 1)^3, clamped to MinAge",
+			expectedDays:    1.0,                // Formula: 1 + (1-30) * ((1000/250-1)^3) = 1 + (-29) * (3)^3 = 1 + (-29) * 27 = 1 + (-783) = -782, clamped to 1
+			expectedFormula: "min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3), clamped to min_age",
 		},
 	}
 

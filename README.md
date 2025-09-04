@@ -2,6 +2,8 @@
 
 A temporary file hosting service built with Echo, inspired by [0x0.st](https://0x0.st/). Perfect for personal, self-hosted temporary file sharing.
 
+**Disclaimer**: While this project is inspired by 0x0.st, it is by no means intended to provide full API compatibility with their implementation. This is a personal project with its own features and limitations.
+
 ## Features
 
 - Upload files up to configurable size limit (default 512MB)
