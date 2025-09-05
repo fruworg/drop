@@ -75,7 +75,7 @@ func NewClient(baseURL string) *Client {
 func (c *Client) UploadFile(filePath string, options map[string]string) (*UploadResponse, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, err
 	}
 	defer file.Close()
 
@@ -279,13 +279,13 @@ func (c *Client) GetChunkedUploadStatus(uploadID string) (*ChunkedUploadStatusRe
 func (c *Client) UploadFileChunked(filePath string, chunkSize int64, showProgress bool) (*ChunkedUploadCompleteResponse, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, err
 	}
 	defer file.Close()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
+		return nil, err
 	}
 
 	fileSize := fileInfo.Size()
@@ -451,7 +451,7 @@ func FormatExpiration(expiration string) string {
 func calculateFileMD5(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", err
 	}
 	defer file.Close()
 
@@ -606,7 +606,7 @@ Options:
 			}
 			resp, err := client.UploadFromURL(url, options)
 			if err != nil {
-				return fmt.Errorf("error uploading from URL: %w", err)
+				return err
 			}
 			printUploadResponse(resp, "") // No local MD5 for URL uploads
 			return nil
@@ -626,7 +626,7 @@ Options:
 			var err error
 			localMD5, err = calculateFileMD5(filePath)
 			if err != nil {
-				return fmt.Errorf("failed to calculate MD5 hash: %w", err)
+				return err
 			}
 		}
 
@@ -636,7 +636,7 @@ Options:
 			// Get file size
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
-				return fmt.Errorf("failed to get file info: %w", err)
+				return err
 			}
 
 			// Get auto-chunk threshold
@@ -672,7 +672,7 @@ Options:
 			showProgress := !noProgress
 			resp, err := client.UploadFileChunked(filePath, chunkSizeBytes, showProgress)
 			if err != nil {
-				return fmt.Errorf("error uploading file chunked: %w", err)
+				return err
 			}
 			printChunkedUploadResponse(resp, localMD5)
 			return nil
@@ -684,7 +684,7 @@ Options:
 
 		resp, err := client.UploadFile(filePath, options)
 		if err != nil {
-			return fmt.Errorf("error uploading file: %w", err)
+			return err
 		}
 		printUploadResponse(resp, localMD5)
 		return nil
@@ -896,8 +896,8 @@ func init() {
 }
 
 func main() {
+	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
