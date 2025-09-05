@@ -783,7 +783,12 @@ Example: drop config set server https://drop.example.com/`,
 		value := args[1]
 
 		viper.Set(key, value)
-		err := viper.WriteConfig()
+
+		// Get the config file path
+		homeDir, _ := os.UserHomeDir()
+		configPath := filepath.Join(homeDir, ".drop", "config.yaml")
+
+		err := viper.WriteConfigAs(configPath)
 		if err != nil {
 			return fmt.Errorf("error saving configuration: %w", err)
 		}
