@@ -380,7 +380,7 @@ func (h *Handler) sendUploadResponse(c echo.Context, filename string, fileSize i
 		}
 
 		if !expirationDate.IsZero() {
-			response["expires_at"] = expirationDate
+			response["expires_at"] = expirationDate.Format(time.RFC3339)
 			days := int(time.Until(expirationDate).Hours() / 24)
 			response["expires_in_days"] = days
 		}

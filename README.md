@@ -6,7 +6,7 @@ A temporary file hosting service built with Echo, inspired by [0x0.st](https://0
 
 ## Features
 
-- Upload files up to configurable size limit (default 512MB)
+- Upload files up to configurable size limit (default 1024MB)
 - Dynamic file expiration based on size
 - One-time download links
 - Secret (hard-to-guess) URLs
@@ -14,75 +14,62 @@ A temporary file hosting service built with Echo, inspired by [0x0.st](https://0
 - Metadata persistence using SQLite
 - Preview protection for one-time links
 - Docker deployment support
+- Chunked uploads for large files with resume capability
 
-## Dependencies
+## Quick Start
 
-- [Echo](https://echo.labstack.com/) - High performance, minimalist Go web framework
-- [templ](https://github.com/a-h/templ) - Typed templating language for Go
-- [SQLite](https://www.sqlite.org/) - Embedded database for metadata storage
-
-## Setup
-
-1. Clone the repo:
-
-   ```
+1. **Clone and setup:**
+   ```bash
    git clone https://github.com/marianozunino/drop.git
    cd drop
-   ```
-
-2. Get dependencies:
-
-   ```
    go mod tidy
    ```
 
-3. Run with task:
-
-   ```
+2. **Run with task:**
+   ```bash
    # Generate templates and run development server
    task dev
-
-   # Or build and then run
+   
+   # Or build and run
    task build
    task serve
    ```
 
-4. Docker deployment:
-   ```
+3. **Docker deployment:**
+   ```bash
    docker build -t drop .
-   docker run -p 8080:8080 -v ./uploads:/uploads -v ./config:/config -v ./data:/data drop
+   docker run -p 3000:3000 -v ./uploads:/uploads -v ./config:/config -v ./data:/data drop
    ```
 
 ## Configuration
 
-Edit `./config/config.json`:
+Edit `./config/config.yaml`:
 
-```json
-{
-  "port": 8080,
-  "min_age_days": 30,
-  "max_age_days": 365,
-  "max_size_mib": 512,
-  "upload_path": "./uploads",
-  "check_interval_min": 60,
-  "expiration_manager_enabled": true,
-  "base_url": "http://localhost:8080/",
-  "sqlite_path": "/data/dump.db",
-  "id_length": 8,
-  "preview_bots": [
-    "slack",
-    "slackbot",
-    "facebookexternalhit",
-    "twitterbot",
-    "discordbot",
-    "whatsapp",
-    "googlebot",
-    "linkedinbot",
-    "telegram",
-    "skype",
-    "viber"
-  ]
-}
+```yaml
+port: 3000
+min_age_days: 30
+max_age_days: 365
+max_size_mib: 1024
+upload_path: ./uploads
+check_interval_min: 60
+expiration_manager_enabled: true
+base_url: "http://localhost:3000/"
+sqlite_path: "./data/dump.db"
+id_length: 4
+chunk_size_mib: 4
+preview_bots:
+  - slack
+  - slackbot
+  - facebookexternalhit
+  - twitterbot
+  - discordbot
+  - whatsapp
+  - googlebot
+  - linkedinbot
+  - telegram
+  - skype
+  - viber
+streaming_buffer_size_kb: 64
 ```
 
 ### Configuration Options
@@ -97,55 +84,68 @@ Edit `./config/config.json`:
 - `base_url` - Base URL for generated file links
 - `sqlite_path` - Path to SQLite database file
 - `id_length` - Length of generated file IDs
+- `chunk_size_mib` - Size of chunks for chunked uploads in MiB
 - `preview_bots` - List of user-agent substrings to identify preview bots
+- `streaming_buffer_size_kb` - Buffer size for streaming file content (in KB)
 
 ## API Usage
 
-### Upload
+### Basic Upload
 
 ```bash
 # Upload a file
-curl -F'file=@yourfile.png' http://localhost:8080/
+curl -F'file=@yourfile.png' http://localhost:3000/
 
 # Upload from URL
-curl -F'url=http://example.com/image.jpg' http://localhost:8080/
+curl -F'url=http://example.com/image.jpg' http://localhost:3000/
 
 # Generate a secret URL
-curl -F'file=@yourfile.png' -F'secret=' http://localhost:8080/
+curl -F'file=@yourfile.png' -F'secret=' http://localhost:3000/
 
 # Create a one-time download link
-curl -F'file=@yourfile.png' -F'one_time=' http://localhost:8080/
+curl -F'file=@yourfile.png' -F'one_time=' http://localhost:3000/
 
 # Set custom expiration (24 hours)
-curl -F'file=@yourfile.png' -F'expires=24' http://localhost:8080/
+curl -F'file=@yourfile.png' -F'expires=24' http://localhost:3000/
 
 # JSON response
-curl -H "Accept: application/json" -F'file=@yourfile.png' http://localhost:8080/
-
-# Combining options
-curl -F'file=@yourfile.png' -F'one_time=' -F'secret=' -F'expires=24' http://localhost:8080/
+curl -H "Accept: application/json" -F'file=@yourfile.png' http://localhost:3000/
 ```
 
-### Manage Files
+### File Management
 
 ```bash
 # Delete a file
-curl -X POST -F'token=your_token_here' -F'delete=' http://localhost:8080/filename.ext
+curl -X POST -F'token=your_token_here' -F'delete=' http://localhost:3000/filename.ext
 
 # Update expiration
-curl -X POST -F'token=your_token_here' -F'expires=48' http://localhost:8080/filename.ext
+curl -X POST -F'token=your_token_here' -F'expires=48' http://localhost:3000/filename.ext
 ```
 
-### Expiration Formats
+### Chunked Upload (Large Files)
 
-The `expires` parameter accepts multiple formats:
+For large files, use the chunked upload feature:
 
-- Hours as integer (e.g., `24`)
-- Unix timestamp in milliseconds (e.g., `1681996320000`)
-- RFC3339 (e.g., `2023-04-20T10:15:30Z`)
-- ISO date (e.g., `2023-04-20`)
-- ISO datetime (e.g., `2023-04-20T10:15:30`)
-- SQL datetime (e.g., `2023-04-20 15:04:05`)
+```bash
+# Initialize chunked upload
+curl -X POST http://localhost:3000/upload/init \
+    -F "filename=large-video.mp4" \
+    -F "size=104857600" \
+    -F "chunk_size=4194304"
+
+# Upload individual chunks
+curl -X POST http://localhost:3000/upload/chunk/abc123/0 \
+    -F "chunk=@chunk_0.bin"
+
+# Check upload progress
+curl http://localhost:3000/upload/status/abc123
+```
+
+## Documentation
+
+- **[Complete API Documentation](API.md)** - Detailed API reference with examples
+- **[Web Interface](https://drop.mz.uy/)** - Interactive upload interface
+- **[Chunked Upload Interface](https://drop.mz.uy/chunked)** - Drag & drop for large files
 
 ## License
 

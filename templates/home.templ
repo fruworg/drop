@@ -123,7 +123,7 @@ curl -L ` + DownloadURL(config) + ` | sh
 				<p>When uploading with <code>Accept: application/json</code> header:</p>
 				<pre>
 @templ.Raw(`{
-  "url": "http://localhost:8080/abc123.txt",
+  "url": "http://localhost:3000/abc123.txt",
   "size": 1024,
   "token": "management_token_here",
   "md5": "d41d8cd98f00b204e9800998ecf8427e",
@@ -138,8 +138,11 @@ curl -L ` + DownloadURL(config) + ` | sh
 @templ.Raw(`{
   "message": "Upload completed",
   "progress": 100,
-  "file_url": "http://localhost:8080/abc123.txt",
-  "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  "file_url": "http://localhost:3000/abc123.txt",
+  "md5": "d41d8cd98f00b204e9800998ecf8427e",
+  "token": "management_token_here",
+  "expires_at": "2024-12-31T23:59:59Z",
+  "expires_in_days": 30
 }`)
 				</pre>
 				
@@ -380,7 +383,17 @@ Chunked upload process:
 
 3. CHECK STATUS:
    GET ` + config.BaseURL + `upload/status/{upload_id}
-   Returns: {"progress": 45, "uploaded_chunks": [0,1,2,3,4,5,6,7,8,9]}
+   Returns: {
+     "upload_id": "abc123",
+     "filename": "large-file.zip",
+     "total_size": 104857600,
+     "chunk_size": 4194304,
+     "total_chunks": 25,
+     "uploaded_chunks": [0,1,2,3,4],
+     "progress": 20,
+     "created_at": "2024-01-01T10:00:00Z",
+     "expires_at": "2024-01-02T10:00:00Z"
+   }
 
 4. FINALIZE:
    When all chunks are uploaded, the file is automatically finalized

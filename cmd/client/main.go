@@ -537,6 +537,22 @@ func parseSize(sizeStr string) (int64, error) {
 	return value * multiplier, nil
 }
 
+// buildFileURL constructs the proper file URL from various input formats
+func buildFileURL(baseURL, input string) string {
+	// If input is already a full URL, use it as-is
+	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+		return input
+	}
+
+	// If input starts with "/", treat it as a path and append to baseURL
+	if strings.HasPrefix(input, "/") {
+		return baseURL + strings.TrimPrefix(input, "/")
+	}
+
+	// Otherwise, treat as file ID and append to baseURL
+	return baseURL + input
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "drop",
 	Short: "MZ.DROP Client - Upload and manage files",
@@ -692,38 +708,45 @@ Options:
 }
 
 var deleteCmd = &cobra.Command{
-	Use:     "delete <file_id>",
+	Use:     "delete <file_id_or_url>",
 	Aliases: []string{"d", "del"},
 	Short:   "Delete an uploaded file",
 	Long: `Delete a file from the server using its file ID and token.
 
-The file ID is the last part of the file URL.
-Example: drop delete abc123 --token your-token`,
+Accepts various input formats:
+  • File ID: drop delete abc123 --token your-token
+  • Full URL: drop delete https://drop.example.com/abc123 --token your-token
+  • Path: drop delete /abc123 --token your-token`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fileID := args[0]
+		fileInput := args[0]
 		token, _ := cmd.Flags().GetString("token")
 
 		if token == "" {
 			return fmt.Errorf("token is required for deletion")
 		}
 
-		fileURL := baseURL + fileID
+		fileURL := buildFileURL(baseURL, fileInput)
 		err := client.DeleteFile(fileURL, token)
 		if err != nil {
 			return fmt.Errorf("error deleting file: %w", err)
 		}
 
-		fmt.Printf("File %s deleted successfully!\n", fileID)
+		fmt.Printf("File %s deleted successfully!\n", fileInput)
 		return nil
 	},
 }
 
 var expireCmd = &cobra.Command{
-	Use:     "expire <file_id>",
+	Use:     "expire <file_id_or_url>",
 	Aliases: []string{"e", "exp"},
 	Short:   "Set expiration for an uploaded file",
 	Long: `Set or update the expiration time for an uploaded file.
+
+Accepts various input formats:
+  • File ID: drop expire abc123 --token your-token --expires 24
+  • Full URL: drop expire https://drop.example.com/abc123 --token your-token --expires 24
+  • Path: drop expire /abc123 --token your-token --expires 24
 
 Expiration formats:
   • Hours: 24, 48, 72
@@ -735,7 +758,7 @@ Expiration formats:
 Example: drop expire abc123 --token your-token --expires 24`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fileID := args[0]
+		fileInput := args[0]
 		token, _ := cmd.Flags().GetString("token")
 		expires, _ := cmd.Flags().GetString("expires")
 
@@ -746,13 +769,13 @@ Example: drop expire abc123 --token your-token --expires 24`,
 			return fmt.Errorf("expiration time is required")
 		}
 
-		fileURL := baseURL + fileID
+		fileURL := buildFileURL(baseURL, fileInput)
 		err := client.SetExpiration(fileURL, token, FormatExpiration(expires))
 		if err != nil {
 			return fmt.Errorf("error setting expiration: %w", err)
 		}
 
-		fmt.Printf("Expiration set successfully for file %s!\n", fileID)
+		fmt.Printf("Expiration set successfully for file %s!\n", fileInput)
 		return nil
 	},
 }
