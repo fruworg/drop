@@ -30,7 +30,7 @@ ARG PORT=3000
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libsqlite3-0 ca-certificates curl && \
+        libsqlite3-0 ca-certificates curl netcat-openbsd && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data /uploads /config && chown -R ${PUID}:${PGID} /data /uploads /config
@@ -45,7 +45,7 @@ VOLUME ["/uploads", "/config", "/data"]
 EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/ || exit 1
+  CMD nc -z localhost 3000 || exit 1
 
 USER ${PUID}:${PGID}
 ENTRYPOINT ["/app/drop"]
