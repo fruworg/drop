@@ -10,8 +10,8 @@ import (
 
 func TestFileMetadataID(t *testing.T) {
 	metadata := &FileMetadata{
-		FilePath: "/uploads/test-file.txt",
-		Token:    "abc123",
+		ResourcePath: "/uploads/test-file.txt",
+		Token:        "abc123",
 	}
 
 	id := metadata.ID()
@@ -23,11 +23,11 @@ func TestFileMetadataJSONSerialization(t *testing.T) {
 	expiresAt := now.Add(24 * time.Hour)
 
 	metadata := FileMetadata{
-		FilePath:     "/uploads/test-file.txt",
+		ResourcePath: "/uploads/test-file.txt",
 		Token:        "test-token-123",
 		OriginalName: "original-file.txt",
 		UploadDate:   now,
-		ExpiresAt:    expiresAt,
+		ExpiresAt:    &expiresAt,
 		Size:         1024,
 		ContentType:  "text/plain",
 		OneTimeView:  true,
@@ -41,7 +41,7 @@ func TestFileMetadataJSONSerialization(t *testing.T) {
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	assert.NoError(t, err)
 
-	assert.Equal(t, metadata.FilePath, unmarshaled.FilePath)
+	assert.Equal(t, metadata.ResourcePath, unmarshaled.ResourcePath)
 	assert.Equal(t, metadata.Token, unmarshaled.Token)
 	assert.Equal(t, metadata.OriginalName, unmarshaled.OriginalName)
 	assert.Equal(t, metadata.UploadDate.Unix(), unmarshaled.UploadDate.Unix())
@@ -53,9 +53,9 @@ func TestFileMetadataJSONSerialization(t *testing.T) {
 
 func TestFileMetadataWithMinimalFields(t *testing.T) {
 	metadata := FileMetadata{
-		FilePath: "/uploads/minimal.txt",
-		Token:    "minimal-token",
-		Size:     512,
+		ResourcePath: "/uploads/minimal.txt",
+		Token:        "minimal-token",
+		Size:         512,
 	}
 
 	id := metadata.ID()
@@ -69,19 +69,19 @@ func TestFileMetadataWithMinimalFields(t *testing.T) {
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	assert.NoError(t, err)
 
-	assert.Equal(t, metadata.FilePath, unmarshaled.FilePath)
+	assert.Equal(t, metadata.ResourcePath, unmarshaled.ResourcePath)
 	assert.Equal(t, metadata.Token, unmarshaled.Token)
 	assert.Equal(t, metadata.Size, unmarshaled.Size)
 	assert.Empty(t, unmarshaled.OriginalName)
 	assert.Empty(t, unmarshaled.ContentType)
 	assert.False(t, unmarshaled.OneTimeView)
 	assert.True(t, unmarshaled.UploadDate.IsZero())
-	assert.True(t, unmarshaled.ExpiresAt.IsZero())
+	assert.Nil(t, unmarshaled.ExpiresAt)
 }
 
 func TestFileMetadataWithEmptyFields(t *testing.T) {
 	metadata := FileMetadata{
-		FilePath:     "/uploads/empty.txt",
+		ResourcePath: "/uploads/empty.txt",
 		Token:        "empty-token",
 		OriginalName: "",
 		Size:         0,
@@ -100,7 +100,7 @@ func TestFileMetadataWithEmptyFields(t *testing.T) {
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	assert.NoError(t, err)
 
-	assert.Equal(t, metadata.FilePath, unmarshaled.FilePath)
+	assert.Equal(t, metadata.ResourcePath, unmarshaled.ResourcePath)
 	assert.Equal(t, metadata.Token, unmarshaled.Token)
 	assert.Empty(t, unmarshaled.OriginalName)
 	assert.Equal(t, int64(0), unmarshaled.Size)
@@ -113,11 +113,11 @@ func TestFileMetadataTimeFields(t *testing.T) {
 	expireTime := time.Date(2023, 7, 15, 14, 30, 45, 0, time.UTC)
 
 	metadata := FileMetadata{
-		FilePath:   "/uploads/time-test.txt",
-		Token:      "time-token",
-		UploadDate: uploadTime,
-		ExpiresAt:  expireTime,
-		Size:       2048,
+		ResourcePath: "/uploads/time-test.txt",
+		Token:        "time-token",
+		UploadDate:   uploadTime,
+		ExpiresAt:    &expireTime,
+		Size:         2048,
 	}
 
 	jsonData, err := json.Marshal(metadata)

@@ -54,11 +54,11 @@ func createTestFileWithMetadata(t *testing.T, tempDir string, db *db.DB, filenam
 	require.NoError(t, err)
 
 	meta := model.FileMetadata{
-		FilePath:     filePath,
+		ResourcePath: filePath,
 		Token:        "test-token-" + filename,
 		OriginalName: "original-" + filename,
 		UploadDate:   uploadTime,
-		ExpiresAt:    expiresAt,
+		ExpiresAt:    &expiresAt,
 		Size:         int64(len(content)),
 		ContentType:  "text/plain",
 		OneTimeView:  false,
@@ -141,10 +141,10 @@ func TestCheckMetadataExpiration_WithExpiresAt(t *testing.T) {
 
 	// Test expired file
 	meta := model.FileMetadata{
-		FilePath:  "/test/expired.txt",
-		Token:     "expired-token",
-		ExpiresAt: pastTime,
-		Size:      1024,
+		ResourcePath: "/test/expired.txt",
+		Token:        "expired-token",
+		ExpiresAt:    &pastTime,
+		Size:         1024,
 	}
 
 	expired, err := manager.CheckMetadataExpiration(meta)
@@ -152,7 +152,7 @@ func TestCheckMetadataExpiration_WithExpiresAt(t *testing.T) {
 	assert.True(t, expired)
 
 	// Test non-expired file
-	meta.ExpiresAt = futureTime
+	meta.ExpiresAt = &futureTime
 	expired, err = manager.CheckMetadataExpiration(meta)
 	require.NoError(t, err)
 	assert.False(t, expired)
@@ -168,10 +168,10 @@ func TestCheckMetadataExpiration_WithUploadDate(t *testing.T) {
 	// Small files get ~29 days retention, so 2 days ago should still be active
 	pastUploadTime := now.Add(-2 * 24 * time.Hour)
 	meta := model.FileMetadata{
-		FilePath:   "/test/expired.txt",
-		Token:      "expired-token",
-		UploadDate: pastUploadTime,
-		Size:       1024, // Small file gets longer retention
+		ResourcePath: "/test/expired.txt",
+		Token:        "expired-token",
+		UploadDate:   pastUploadTime,
+		Size:         1024, // Small file gets longer retention
 	}
 
 	expired, err := manager.CheckMetadataExpiration(meta)
@@ -198,9 +198,9 @@ func TestCheckMetadataExpiration_NoDates(t *testing.T) {
 	defer cleanup()
 
 	meta := model.FileMetadata{
-		FilePath: "/test/no-dates.txt",
-		Token:    "no-dates-token",
-		Size:     1024,
+		ResourcePath: "/test/no-dates.txt",
+		Token:        "no-dates-token",
+		Size:         1024,
 	}
 
 	expired, err := manager.CheckMetadataExpiration(meta)
@@ -238,7 +238,7 @@ func TestCleanupExpiredFiles_WithMetadata(t *testing.T) {
 	allMetadata, err := db.ListAllMetadata()
 	require.NoError(t, err)
 	assert.Len(t, allMetadata, 1)
-	assert.Equal(t, activeFile, allMetadata[0].FilePath)
+	assert.Equal(t, activeFile, allMetadata[0].ResourcePath)
 }
 
 func TestCleanupExpiredFiles_WithoutMetadata(t *testing.T) {

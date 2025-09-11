@@ -19,7 +19,7 @@ import (
 
 func (h *Handler) HandleFileAccess(c echo.Context) error {
 	filename := c.Param("filename")
-	
+
 	meta, err := h.db.GetMetadataByID(filename)
 	if err == nil && meta.IsURLShortener {
 		return h.HandleURLRedirect(c)
@@ -339,7 +339,7 @@ func (h *Handler) setResponseHeaders(c echo.Context, meta model.FileMetadata, fi
 	}
 
 	// Set expiration header if applicable
-	if !meta.ExpiresAt.IsZero() {
+	if meta.ExpiresAt != nil && !meta.ExpiresAt.IsZero() {
 		expiresMs := meta.ExpiresAt.UnixNano() / int64(time.Millisecond)
 		c.Response().Header().Set("X-Expires", fmt.Sprintf("%d", expiresMs))
 	}

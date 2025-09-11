@@ -68,11 +68,11 @@ func TestStoreMetadata(t *testing.T) {
 	expiresAt := now.Add(24 * time.Hour)
 
 	metadata := &model.FileMetadata{
-		FilePath:     "/uploads/test-file.txt",
+		ResourcePath: "/uploads/test-file.txt",
 		Token:        "test-token-123",
 		OriginalName: "original-file.txt",
 		UploadDate:   now,
-		ExpiresAt:    expiresAt,
+		ExpiresAt:    &expiresAt,
 		Size:         1024,
 		ContentType:  "text/plain",
 		OneTimeView:  true,
@@ -87,9 +87,9 @@ func TestStoreMetadataWithInvalidJSON(t *testing.T) {
 	defer cleanup()
 
 	metadata := &model.FileMetadata{
-		FilePath: "/uploads/test-file.txt",
-		Token:    "test-token",
-		Size:     1024,
+		ResourcePath: "/uploads/test-file.txt",
+		Token:        "test-token",
+		Size:         1024,
 	}
 
 	err := db.StoreMetadata(metadata)
@@ -104,11 +104,11 @@ func TestGetMetadataByID(t *testing.T) {
 	expiresAt := now.Add(24 * time.Hour)
 
 	originalMetadata := &model.FileMetadata{
-		FilePath:     "/uploads/test-file.txt",
+		ResourcePath: "/uploads/test-file.txt",
 		Token:        "test-token-123",
 		OriginalName: "original-file.txt",
 		UploadDate:   now,
-		ExpiresAt:    expiresAt,
+		ExpiresAt:    &expiresAt,
 		Size:         1024,
 		ContentType:  "text/plain",
 		OneTimeView:  true,
@@ -121,7 +121,7 @@ func TestGetMetadataByID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the retrieved metadata matches the original
-	assert.Equal(t, originalMetadata.FilePath, retrievedMetadata.FilePath)
+	assert.Equal(t, originalMetadata.ResourcePath, retrievedMetadata.ResourcePath)
 	assert.Equal(t, originalMetadata.Token, retrievedMetadata.Token)
 	assert.Equal(t, originalMetadata.OriginalName, retrievedMetadata.OriginalName)
 	assert.Equal(t, originalMetadata.UploadDate.Unix(), retrievedMetadata.UploadDate.Unix())
@@ -138,7 +138,7 @@ func TestGetMetadataByIDNotFound(t *testing.T) {
 	metadata, err := db.GetMetadataByID("non-existent-id")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no metadata found with ID")
-	assert.Empty(t, metadata.FilePath)
+	assert.Empty(t, metadata.ResourcePath)
 }
 
 func TestListAllMetadata(t *testing.T) {
@@ -146,21 +146,21 @@ func TestListAllMetadata(t *testing.T) {
 	defer cleanup()
 
 	metadata1 := &model.FileMetadata{
-		FilePath: "/uploads/file1.txt",
-		Token:    "token1",
-		Size:     1024,
+		ResourcePath: "/uploads/file1.txt",
+		Token:        "token1",
+		Size:         1024,
 	}
 
 	metadata2 := &model.FileMetadata{
-		FilePath: "/uploads/file2.txt",
-		Token:    "token2",
-		Size:     2048,
+		ResourcePath: "/uploads/file2.txt",
+		Token:        "token2",
+		Size:         2048,
 	}
 
 	metadata3 := &model.FileMetadata{
-		FilePath: "/uploads/file3.txt",
-		Token:    "token3",
-		Size:     4096,
+		ResourcePath: "/uploads/file3.txt",
+		Token:        "token3",
+		Size:         4096,
 	}
 
 	err := db.StoreMetadata(metadata1)
@@ -179,7 +179,7 @@ func TestListAllMetadata(t *testing.T) {
 
 	filePaths := make(map[string]bool)
 	for _, meta := range allMetadata {
-		filePaths[meta.FilePath] = true
+		filePaths[meta.ResourcePath] = true
 	}
 
 	assert.True(t, filePaths["/uploads/file1.txt"])
@@ -202,9 +202,9 @@ func TestDeleteMetadata(t *testing.T) {
 	defer cleanup()
 
 	metadata := &model.FileMetadata{
-		FilePath: "/uploads/file-to-delete.txt",
-		Token:    "delete-token",
-		Size:     1024,
+		ResourcePath: "/uploads/file-to-delete.txt",
+		Token:        "delete-token",
+		Size:         1024,
 	}
 
 	err := db.StoreMetadata(metadata)
@@ -212,7 +212,7 @@ func TestDeleteMetadata(t *testing.T) {
 
 	retrievedMetadata, err := db.GetMetadataByID(metadata.ID())
 	require.NoError(t, err)
-	assert.Equal(t, metadata.FilePath, retrievedMetadata.FilePath)
+	assert.Equal(t, metadata.ResourcePath, retrievedMetadata.ResourcePath)
 
 	err = db.DeleteMetadata(metadata)
 	assert.NoError(t, err)
@@ -227,9 +227,9 @@ func TestDeleteMetadataNonExistent(t *testing.T) {
 	defer cleanup()
 
 	metadata := &model.FileMetadata{
-		FilePath: "/uploads/non-existent.txt",
-		Token:    "non-existent-token",
-		Size:     1024,
+		ResourcePath: "/uploads/non-existent.txt",
+		Token:        "non-existent-token",
+		Size:         1024,
 	}
 
 	err := db.DeleteMetadata(metadata)
@@ -241,18 +241,18 @@ func TestStoreMetadataReplace(t *testing.T) {
 	defer cleanup()
 
 	originalMetadata := &model.FileMetadata{
-		FilePath: "/uploads/same-file.txt",
-		Token:    "original-token",
-		Size:     1024,
+		ResourcePath: "/uploads/same-file.txt",
+		Token:        "original-token",
+		Size:         1024,
 	}
 
 	err := db.StoreMetadata(originalMetadata)
 	require.NoError(t, err)
 
 	updatedMetadata := &model.FileMetadata{
-		FilePath: "/uploads/same-file.txt",
-		Token:    "updated-token",
-		Size:     2048,
+		ResourcePath: "/uploads/same-file.txt",
+		Token:        "updated-token",
+		Size:         2048,
 	}
 
 	err = db.StoreMetadata(updatedMetadata)
@@ -289,9 +289,9 @@ func TestConcurrentOperations(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(index int) {
 			metadata := &model.FileMetadata{
-				FilePath: filepath.Join("/uploads", "concurrent", "file"+string(rune(index))+".txt"),
-				Token:    "token" + string(rune(index)),
-				Size:     int64(1024 * index),
+				ResourcePath: filepath.Join("/uploads", "concurrent", "file"+string(rune(index))+".txt"),
+				Token:        "token" + string(rune(index)),
+				Size:         int64(1024 * index),
 			}
 
 			err := db.StoreMetadata(metadata)
@@ -299,7 +299,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 			retrievedMetadata, err := db.GetMetadataByID(metadata.ID())
 			assert.NoError(t, err)
-			assert.Equal(t, metadata.FilePath, retrievedMetadata.FilePath)
+			assert.Equal(t, metadata.ResourcePath, retrievedMetadata.ResourcePath)
 
 			done <- true
 		}(i)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Drop Client Installer
 # Auto-generated install script
 
@@ -10,7 +10,8 @@ BINARY_NAME="drop"
 
 # Detect platform
 detect_platform() {
-    local os arch
+    os=""
+    arch=""
     
     case "$(uname -s)" in
         Linux*)     os="linux" ;;
@@ -31,31 +32,72 @@ detect_platform() {
 # Download and install
 platform=$(detect_platform)
 echo "Detected platform: $platform"
-echo "Downloading Drop client..."
+echo "Downloading Drop client from GitHub releases..."
 
 mkdir -p "$INSTALL_DIR"
 
+# Determine download URL based on platform
+if [ "$platform" = "windows-amd64" ]; then
+    DOWNLOAD_URL="https://github.com/marianozunino/drop/releases/latest/download/drop_windows_amd64.zip"
+    TEMP_FILE="drop.zip"
+    EXTRACT_CMD="unzip -o"
+elif [ "$platform" = "linux-amd64" ]; then
+    DOWNLOAD_URL="https://github.com/marianozunino/drop/releases/latest/download/drop_linux_amd64.tar.gz"
+    TEMP_FILE="drop.tar.gz"
+    EXTRACT_CMD="tar -xzf"
+elif [ "$platform" = "linux-arm64" ]; then
+    DOWNLOAD_URL="https://github.com/marianozunino/drop/releases/latest/download/drop_linux_arm64.tar.gz"
+    TEMP_FILE="drop.tar.gz"
+    EXTRACT_CMD="tar -xzf"
+elif [ "$platform" = "darwin-amd64" ]; then
+    DOWNLOAD_URL="https://github.com/marianozunino/drop/releases/latest/download/drop_darwin_amd64.tar.gz"
+    TEMP_FILE="drop.tar.gz"
+    EXTRACT_CMD="tar -xzf"
+elif [ "$platform" = "darwin-arm64" ]; then
+    DOWNLOAD_URL="https://github.com/marianozunino/drop/releases/latest/download/drop_darwin_arm64.tar.gz"
+    TEMP_FILE="drop.tar.gz"
+    EXTRACT_CMD="tar -xzf"
+else
+    echo "Error: Unsupported platform: $platform"
+    exit 1
+fi
+
+# Create temp directory
+TEMP_DIR=$(mktemp -d)
+cd "$TEMP_DIR"
+
+# Download binary
 if command -v curl >/dev/null 2>&1; then
-    curl -L "$BASE_URL/binaries/$platform" -o "$INSTALL_DIR/$BINARY_NAME"
+    curl -L "$DOWNLOAD_URL" -o "$TEMP_FILE"
 elif command -v wget >/dev/null 2>&1; then
-    wget -O "$INSTALL_DIR/$BINARY_NAME" "$BASE_URL/binaries/$platform"
+    wget -O "$TEMP_FILE" "$DOWNLOAD_URL"
 else
     echo "Error: Neither curl nor wget found. Please install one of them."
     exit 1
 fi
 
+# Extract binary
+$EXTRACT_CMD "$TEMP_FILE"
+mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
+# Cleanup
+cd /
+rm -rf "$TEMP_DIR"
+
 # Add to PATH if not already there
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo "Adding $INSTALL_DIR to PATH..."
-    case "$SHELL" in
-        */bash) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.bashrc" ;;
-        */zsh) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.zshrc" ;;
-        *) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.profile" ;;
-    esac
-    echo "Please run 'source ~/.bashrc' (or ~/.zshrc) or restart your terminal."
-fi
+case ":$PATH:" in
+    *":$INSTALL_DIR:"*) ;;
+    *) 
+        echo "Adding $INSTALL_DIR to PATH..."
+        case "$SHELL" in
+            */bash) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.bashrc" ;;
+            */zsh) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.zshrc" ;;
+            *) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.profile" ;;
+        esac
+        echo "Please run 'source ~/.bashrc' (or ~/.zshrc) or restart your terminal."
+        ;;
+esac
 
 echo "Installation completed! You can now use 'drop' command."
 echo "Try: drop --help"

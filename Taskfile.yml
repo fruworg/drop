@@ -23,6 +23,44 @@ tasks:
     generates:
       - bin/drop
 
+  build:client:
+    desc: Build CLI client for all platforms
+    cmds:
+      - ./scripts/build-client.sh all
+    sources:
+      - ./cmd/client/**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - dist/
+
+  build:client:linux:
+    desc: Build CLI client for Linux
+    cmds:
+      - ./scripts/build-client.sh linux {{.ARCH | default "all"}}
+    sources:
+      - ./cmd/client/**/*.go
+      - go.mod
+      - go.sum
+
+  build:client:darwin:
+    desc: Build CLI client for macOS
+    cmds:
+      - ./scripts/build-client.sh darwin {{.ARCH | default "all"}}
+    sources:
+      - ./cmd/client/**/*.go
+      - go.mod
+      - go.sum
+
+  build:client:windows:
+    desc: Build CLI client for Windows
+    cmds:
+      - ./scripts/build-client.sh windows {{.ARCH | default "all"}}
+    sources:
+      - ./cmd/client/**/*.go
+      - go.mod
+      - go.sum
+
   templ:
     desc: Generate templ templates
     cmds:

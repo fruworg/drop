@@ -6,6 +6,9 @@
 README.md
 *.md
 docs/
+ADMIN.md
+API.md
+LICENSE
 
 # Development files
 .env
@@ -27,11 +30,13 @@ Thumbs.db
 drop
 drop-client
 *.exe
+bin/
 
 # Test files
 *_test.go
 test/
 tests/
+e2e_test.go
 
 # Temporary files
 tmp/
@@ -47,8 +52,7 @@ coverage/
 *.out
 
 # Scripts (not needed in container)
-scripts/
-*.sh
+Taskfile.yml
 
 # Docker files
 Dockerfile*
@@ -60,6 +64,10 @@ docker-compose*.yml
 .gitlab-ci.yml
 .travis.yml
 .circleci/
+.goreleaser.yml
+goreleaser
+completions/
+manpages/
 
 # Local data
 data/
@@ -67,6 +75,15 @@ uploads/
 *.db
 *.sqlite
 *.sqlite3
+
+# GoReleaser artifacts
+.goreleaser.yml
+goreleaser
+completions/
+manpages/
+
+# Template source files (only need generated *_templ.go files)
+*.templ
 
 # Config files (will be copied separately)
 # Note: config/config.yaml is needed for the Docker build

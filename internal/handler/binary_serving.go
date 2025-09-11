@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"text/template"
@@ -24,7 +23,7 @@ type BinaryInfo struct {
 	URL      string
 }
 
-// HandleBinaryDownload serves the client binary for download
+// HandleBinaryDownload redirects to GitHub releases for CLI binary downloads
 func (h *Handler) HandleBinaryDownload(c echo.Context) error {
 	platform := c.Param("platform")
 	if platform == "" {
@@ -62,23 +61,14 @@ func (h *Handler) HandleBinaryDownload(c echo.Context) error {
 	// Determine filename
 	var filename string
 	if osName == "windows" {
-		filename = fmt.Sprintf("drop-%s-%s.exe", osName, arch)
+		filename = fmt.Sprintf("drop_windows_%s.zip", arch)
 	} else {
-		filename = fmt.Sprintf("drop-%s-%s", osName, arch)
+		filename = fmt.Sprintf("drop_%s_%s.tar.gz", osName, arch)
 	}
 
-	// Check if binary exists
-	binaryPath := filepath.Join("/app/binaries", filename)
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		return c.String(http.StatusNotFound, "Binary not found for this platform")
-	}
-
-	// Set appropriate headers for download
-	c.Response().Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Response().Header().Set("Content-Type", "application/octet-stream")
-
-	// Serve the file
-	return c.File(binaryPath)
+	// Redirect to GitHub releases
+	githubURL := fmt.Sprintf("https://github.com/marianozunino/drop/releases/latest/download/%s", filename)
+	return c.Redirect(http.StatusFound, githubURL)
 }
 
 // HandleBinaryList returns a list of available binaries
@@ -183,6 +173,10 @@ func (h *Handler) HandleBinaryAutoDetect(c echo.Context) error {
 		platform = "linux-amd64"
 	}
 
-	// Redirect to the appropriate binary
-	return c.Redirect(http.StatusFound, fmt.Sprintf("%s/binaries/%s", baseURL, platform))
+	// Redirect to GitHub releases
+	githubURL := fmt.Sprintf("https://github.com/marianozunino/drop/releases/latest/download/drop_%s.tar.gz", platform)
+	if strings.Contains(strings.ToLower(userAgent), "windows") {
+		githubURL = fmt.Sprintf("https://github.com/marianozunino/drop/releases/latest/download/drop_windows_amd64.zip")
+	}
+	return c.Redirect(http.StatusFound, githubURL)
 }

@@ -22,6 +22,11 @@ import (
 var (
 	baseURL string
 	client  *Client
+
+	// Version information (set during build)
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
 )
 
 type UploadResponse struct {
@@ -615,6 +620,7 @@ Quick start:
   drop shorten https://example.com/long/url  # Shorten a URL
   drop delete abc123 --token your-token   # Delete a file
   drop config set server https://drop.example.com/  # Set server URL`,
+	Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		baseURL = viper.GetString("server")
 		if baseURL == "" {
@@ -1016,10 +1022,22 @@ func init() {
 
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configGetCmd)
+
+	// Add version flag
+	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
 func main() {
 	rootCmd.SilenceUsage = true
+
+	// Handle version flag
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("Drop CLI %s\n", version)
+		fmt.Printf("Commit: %s\n", commit)
+		fmt.Printf("Built: %s\n", date)
+		return
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
