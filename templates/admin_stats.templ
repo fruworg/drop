@@ -1,0 +1,33 @@
+package templates
+
+import (
+	"strconv"
+	"github.com/marianozunino/drop/internal/model"
+)
+
+templ AdminStats(files []model.AdminFileInfo, totalFiles int, matchingFiles int, totalSize int64, searchQuery string) {
+	<div class="stats">
+		<div class="stat-card">
+			<div class="stat-number">{ strconv.Itoa(totalFiles) }</div>
+			<div class="stat-label">Total Files</div>
+		</div>
+		if searchQuery != "" {
+			<div class="stat-card">
+				<div class="stat-number">{ strconv.Itoa(matchingFiles) }</div>
+				<div class="stat-label">Matching Files</div>
+			</div>
+		}
+		<div class="stat-card">
+			<div class="stat-number">{ strconv.Itoa(CountExpiredFiles(files)) }</div>
+			<div class="stat-label">Expired Files</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-number">{ strconv.Itoa(CountOneTimeFiles(files)) }</div>
+			<div class="stat-label">One-Time Files</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-number">{ FormatGlobalTotalSize(totalSize) }</div>
+			<div class="stat-label">Total Size</div>
+		</div>
+	</div>
+}

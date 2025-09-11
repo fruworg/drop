@@ -69,6 +69,7 @@ func logConfiguration(cfg *config.Config) {
 	log.Printf("  Max Retention: %d days", cfg.MaxAge)
 	log.Printf("  Check Interval: %d minutes", cfg.CheckInterval)
 	log.Printf("  Expiration Manager: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.ExpirationManagerEnabled])
+	log.Printf("  Admin Panel: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.AdminPanelEnabled])
 	log.Printf("")
 	log.Printf("Preview Bots (%d configured):", len(cfg.PreviewBots))
 	for i, bot := range cfg.PreviewBots {
@@ -213,6 +214,17 @@ func registerRoutes(e *echo.Echo, app *App) {
 
 	// Upload statistics
 	e.GET("/stats", h.HandleUploadStats)
+
+	// Admin routes (only if enabled)
+	if app.config.AdminPanelEnabled {
+		e.GET("/admin/login", h.HandleAdminLogin)
+		e.POST("/admin/login", h.HandleAdminLogin)
+		e.GET("/admin/logout", h.HandleAdminLogout)
+		e.GET("/admin", h.HandleAdminDashboard)
+		e.GET("/admin/file/:filename", h.HandleAdminFileView)
+		e.POST("/admin/file/:filename", h.HandleAdminFileUpdate)
+		e.GET("/admin/file/:filename/delete", h.HandleAdminFileDelete)
+	}
 
 	// Binary serving routes
 	e.GET("/binaries/:platform", h.HandleBinaryDownload)

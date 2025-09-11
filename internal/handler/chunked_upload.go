@@ -202,9 +202,9 @@ func (h *Handler) UploadChunk(c echo.Context) error {
 
 		// Get expiration information from stored metadata
 		metadata, err := h.db.GetMetadataByID(finalPath)
-		if err == nil && !metadata.ExpiresAt.IsZero() {
+		if err == nil && metadata.ExpiresAt != nil && !metadata.ExpiresAt.IsZero() {
 			response["expires_at"] = metadata.ExpiresAt.Format(time.RFC3339)
-			days := int(time.Until(metadata.ExpiresAt).Hours() / 24)
+			days := int(time.Until(*metadata.ExpiresAt).Hours() / 24)
 			response["expires_in_days"] = days
 		}
 
@@ -339,7 +339,7 @@ func (h *Handler) finalizeChunkedUpload(upload *ChunkedUpload) (string, error) {
 	}
 
 	if !expirationDate.IsZero() {
-		metadata.ExpiresAt = expirationDate
+		metadata.ExpiresAt = &expirationDate
 	}
 
 	if err := h.db.StoreMetadata(&metadata); err != nil {

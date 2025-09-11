@@ -1,15 +1,20 @@
 package handler
 
 import (
+	"embed"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"text/template"
 
 	"github.com/labstack/echo/v4"
 )
+
+//go:embed install.sh.tmpl
+var installScriptTemplate embed.FS
 
 // BinaryInfo represents information about a downloadable binary
 type BinaryInfo struct {
@@ -139,72 +144,27 @@ func (h *Handler) HandleBinaryAutoDetect(c echo.Context) error {
 	// Check if this is a shell request (pipe to sh)
 	acceptHeader := c.Request().Header.Get("Accept")
 	if strings.Contains(acceptHeader, "text/plain") || strings.Contains(userAgent, "curl") || strings.Contains(userAgent, "wget") {
-		// Serve the install script
-		installScript := fmt.Sprintf(`#!/bin/bash
-# MZ.DROP Client Installer
-# Auto-generated install script
+		// Serve the install script using embedded template
+		tmplContent, err := installScriptTemplate.ReadFile("install.sh.tmpl")
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "Failed to read install script template")
+		}
 
-set -e
+		tmpl, err := template.New("install").Parse(string(tmplContent))
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "Failed to parse install script template")
+		}
 
-BASE_URL="%s"
-INSTALL_DIR="$HOME/.local/bin"
-BINARY_NAME="drop"
-
-# Detect platform
-detect_platform() {
-    local os arch
-    
-    case "$(uname -s)" in
-        Linux*)     os="linux" ;;
-        Darwin*)    os="darwin" ;;
-        CYGWIN*|MINGW32*|MSYS*|MINGW*) os="windows" ;;
-        *)          os="unknown" ;;
-    esac
-    
-    case "$(uname -m)" in
-        x86_64)     arch="amd64" ;;
-        arm64|aarch64) arch="arm64" ;;
-        *)          arch="unknown" ;;
-    esac
-    
-    echo "${os}-${arch}"
-}
-
-# Download and install
-platform=$(detect_platform)
-echo "Detected platform: $platform"
-echo "Downloading MZ.DROP client..."
-
-mkdir -p "$INSTALL_DIR"
-
-if command -v curl >/dev/null 2>&1; then
-    curl -L "$BASE_URL/binaries/$platform" -o "$INSTALL_DIR/$BINARY_NAME"
-elif command -v wget >/dev/null 2>&1; then
-    wget -O "$INSTALL_DIR/$BINARY_NAME" "$BASE_URL/binaries/$platform"
-else
-    echo "Error: Neither curl nor wget found. Please install one of them."
-    exit 1
-fi
-
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-# Add to PATH if not already there
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo "Adding $INSTALL_DIR to PATH..."
-    case "$SHELL" in
-        */bash) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.bashrc" ;;
-        */zsh) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.zshrc" ;;
-        *) echo 'export PATH="$PATH:'$INSTALL_DIR'"' >> "$HOME/.profile" ;;
-    esac
-    echo "Please run 'source ~/.bashrc' (or ~/.zshrc) or restart your terminal."
-fi
-
-echo "Installation completed! You can now use 'drop' command."
-echo "Try: drop --help"
-`, baseURL)
+		var script strings.Builder
+		err = tmpl.Execute(&script, map[string]string{
+			"BaseURL": baseURL,
+		})
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "Failed to execute install script template")
+		}
 
 		c.Response().Header().Set("Content-Type", "text/plain")
-		return c.String(http.StatusOK, installScript)
+		return c.String(http.StatusOK, script.String())
 	}
 
 	// Simple detection based on User-Agent for direct binary download

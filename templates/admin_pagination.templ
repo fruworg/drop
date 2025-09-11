@@ -1,0 +1,50 @@
+package templates
+
+import (
+	"strconv"
+	"github.com/marianozunino/drop/internal/model"
+)
+
+templ AdminPagination(files []model.AdminFileInfo, sortField string, sortDirection string, searchQuery string, cursor string, nextCursor string, limit int) {
+	<div class="pagination-section">
+		<div class="pagination-info">
+			Showing { strconv.Itoa(len(files)) } files
+			if nextCursor != "" {
+				<span class="pagination-more">(more available)</span>
+			}
+		</div>
+		<div class="pagination-controls">
+			if cursor != "" {
+				<a href={ templ.URL(GetPaginationURL(sortField, sortDirection, searchQuery, "", limit)) } class="pagination-btn">← Previous</a>
+			}
+			if nextCursor != "" {
+				<a href={ templ.URL(GetPaginationURL(sortField, sortDirection, searchQuery, nextCursor, limit)) } class="pagination-btn">Next →</a>
+			}
+		</div>
+		<div class="pagination-settings">
+			<label for="page-size">Page size:</label>
+			<select id="page-size" onchange="changePageSize(this.value)">
+				if limit == 10 {
+					<option value="10" selected>10</option>
+				} else {
+					<option value="10">10</option>
+				}
+				if limit == 25 {
+					<option value="25" selected>25</option>
+				} else {
+					<option value="25">25</option>
+				}
+				if limit == 50 {
+					<option value="50" selected>50</option>
+				} else {
+					<option value="50">50</option>
+				}
+				if limit == 100 {
+					<option value="100" selected>100</option>
+				} else {
+					<option value="100">100</option>
+				}
+			</select>
+		</div>
+	</div>
+}

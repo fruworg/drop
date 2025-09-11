@@ -1,0 +1,119 @@
+package templates
+
+import (
+	"path/filepath"
+	"strconv"
+	"github.com/marianozunino/drop/internal/model"
+)
+
+templ AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirection string, searchQuery string, cursor string, limit int) {
+	<div class="files-table">
+		if len(files) == 0 {
+			<div class="no-files">
+				<h3>No files uploaded yet</h3>
+				<p>Files will appear here once they are uploaded.</p>
+			</div>
+		} else {
+			<table class="files-table">
+				<thead>
+					<tr>
+						<th class="sortable">
+							<a href={ templ.URL(GetSortURL("filename", sortField, sortDirection, searchQuery, cursor, limit)) }>
+								Filename
+								if sortField == "filename" {
+									if sortDirection == "asc" {
+										<span>↑</span>
+									} else {
+										<span>↓</span>
+									}
+								}
+							</a>
+						</th>
+						<th class="sortable">
+							<a href={ templ.URL(GetSortURL("originalName", sortField, sortDirection, searchQuery, cursor, limit)) }>
+								Original Name
+								if sortField == "originalName" {
+									if sortDirection == "asc" {
+										<span>↑</span>
+									} else {
+										<span>↓</span>
+									}
+								}
+							</a>
+						</th>
+						<th class="sortable">
+							<a href={ templ.URL(GetSortURL("size", sortField, sortDirection, searchQuery, cursor, limit)) }>
+								Size
+								if sortField == "size" {
+									if sortDirection == "asc" {
+										<span>↑</span>
+									} else {
+										<span>↓</span>
+									}
+								}
+							</a>
+						</th>
+						<th class="sortable">
+							<a href={ templ.URL(GetSortURL("uploadDate", sortField, sortDirection, searchQuery, cursor, limit)) }>
+								Upload Date
+								if sortField == "uploadDate" {
+									if sortDirection == "asc" {
+										<span>↑</span>
+									} else {
+										<span>↓</span>
+									}
+								}
+							</a>
+						</th>
+						<th class="sortable">
+							<a href={ templ.URL(GetSortURL("expires", sortField, sortDirection, searchQuery, cursor, limit)) }>
+								Expires
+								if sortField == "expires" {
+									if sortDirection == "asc" {
+										<span>↑</span>
+									} else {
+										<span>↓</span>
+									}
+								}
+							</a>
+						</th>
+						<th>Type</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, file := range files {
+						<tr>
+							<td class="filename">{ filepath.Base(file.FilePath) }</td>
+							<td>{ file.OriginalName }</td>
+							<td class="size">{ FormatBytes(file.Size) }</td>
+							<td>{ file.UploadDate.Format("2006-01-02 15:04") }</td>
+							<td>
+								if file.IsExpired {
+									<span class="expired">Expired</span>
+								} else if file.DaysLeft <= 7 {
+									<span class="expires-soon">{ strconv.Itoa(file.DaysLeft) } days</span>
+								} else {
+									{ strconv.Itoa(file.DaysLeft) } days
+								}
+							</td>
+							<td>
+								if file.OneTimeView {
+									<span class="one-time">ONE-TIME</span>
+								} else {
+									<span>Regular</span>
+								}
+							</td>
+							<td>
+								<div class="actions">
+									<a href={ templ.URL("/admin/file/" + filepath.Base(file.FilePath)) } class="btn btn-view">View</a>
+									<a href={ templ.URL(GetDeleteURL(filepath.Base(file.FilePath), sortField, sortDirection, searchQuery, limit)) } class="btn btn-delete" @click="confirmDelete($event)">Delete</a>
+								</div>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}

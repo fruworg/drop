@@ -1,0 +1,11 @@
+package templates
+
+templ AdminHeader() {
+	<div class="header">
+		<h1>Admin Dashboard</h1>
+		<div class="header-actions">
+			<button @click="showSettings = !showSettings">⚙️ Settings</button>
+			<button onclick="window.location.href='/admin/logout'" class="logout-btn">🚪 Logout</button>
+		</div>
+	</div>
+}

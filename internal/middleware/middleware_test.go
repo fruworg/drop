@@ -36,7 +36,7 @@ func TestSecurityHeaders(t *testing.T) {
 	assert.Equal(t, "sameorigin", headers.Get("X-Frame-Options"))
 	assert.Equal(t, "nosniff", headers.Get("X-Content-Type-Options"))
 	assert.Equal(t, "1; mode=block", headers.Get("X-XSS-Protection"))
-	assert.Equal(t, "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'", headers.Get("Content-Security-Policy"))
+	assert.Equal(t, "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'", headers.Get("Content-Security-Policy"))
 	assert.Equal(t, "no-referrer, strict-origin-when-cross-origin", headers.Get("Referrer-Policy"))
 
 	assert.Empty(t, headers.Get("Server"))

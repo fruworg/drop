@@ -344,7 +344,7 @@ func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo
 	}
 
 	if !expirationDate.IsZero() {
-		metadata.ExpiresAt = expirationDate
+		metadata.ExpiresAt = &expirationDate
 	}
 
 	if err := h.db.StoreMetadata(&metadata); err != nil {

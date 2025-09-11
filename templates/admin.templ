@@ -1,0 +1,19 @@
+package templates
+
+import (
+	"github.com/marianozunino/drop/internal/model"
+)
+
+// Main admin templates that compose smaller components
+
+templ AdminLoginPage() {
+	@AdminLogin()
+}
+
+templ AdminDashboardPage(files []model.AdminFileInfo, sortField string, sortDirection string, searchQuery string, cursor string, nextCursor string, limit int, totalFiles int, matchingFiles int, totalSize int64) {
+	@AdminDashboard(files, sortField, sortDirection, searchQuery, cursor, nextCursor, limit, totalFiles, matchingFiles, totalSize)
+}
+
+templ AdminFileViewPage(file model.AdminFileInfo) {
+	@AdminFileView(file)
+} 

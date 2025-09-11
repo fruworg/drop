@@ -1,7 +1,11 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/viper"
+	"github.com/tg123/go-htpasswd"
 )
 
 // Config represents the application configuration
@@ -20,6 +24,8 @@ type Config struct {
 	ChunkSize                float64  `mapstructure:"chunk_size_mib"`
 	PreviewBots              []string `mapstructure:"preview_bots"`
 	StreamingBufferSize      int      `mapstructure:"streaming_buffer_size_kb"`
+	AdminPanelEnabled        bool     `mapstructure:"admin_panel_enabled"`
+	AdminPasswordHash        string   `mapstructure:"admin_password_hash"`
 }
 
 // LoadConfig loads configuration from file and environment variables using Viper.
@@ -59,6 +65,8 @@ func LoadConfig(configPath string) (*Config, error) {
 		"viber",
 	})
 	v.SetDefault("streaming_buffer_size_kb", 64)
+	v.SetDefault("admin_panel_enabled", true)
+	v.SetDefault("admin_password_hash", "")
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
@@ -67,6 +75,11 @@ func LoadConfig(configPath string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+
+	// Validate admin panel configuration
+	if cfg.AdminPanelEnabled && cfg.AdminPasswordHash == "" {
+		return nil, fmt.Errorf("admin panel is enabled but admin_password_hash is not set. Please generate a password hash using: htpasswd -n admin yourpassword")
 	}
 
 	return &cfg, nil
@@ -85,4 +98,31 @@ func (c *Config) ChunkSizeToBytes() int64 {
 // StreamingBufferSizeToBytes converts the StreamingBufferSize from KB to bytes
 func (c *Config) StreamingBufferSizeToBytes() int {
 	return c.StreamingBufferSize * 1024
+}
+
+// ValidateAdminPassword checks if the provided username and password matches the htpasswd hash
+// Supports Apache MD5 ($apr1$) format
+// Format: username:hash (e.g., "admin:$apr1$...")
+func (c *Config) ValidateAdminPassword(username, password string) bool {
+	if c.AdminPasswordHash == "" {
+		return false
+	}
+
+	parts := strings.Split(c.AdminPasswordHash, ":")
+	if len(parts) != 2 {
+		return false
+	}
+
+	expectedUsername := parts[0]
+	hash := parts[1]
+
+	if username != expectedUsername {
+		return false
+	}
+
+	encodedPasswd, err := htpasswd.AcceptMd5(hash)
+	if err != nil {
+		return false
+	}
+	return encodedPasswd.MatchesPassword(password)
 }

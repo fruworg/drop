@@ -48,3 +48,13 @@ preview_bots:
 
 # streaming_buffer_size_kb: Buffer size for streaming file content (in KB)
 streaming_buffer_size_kb: 64
+
+# admin_panel_enabled: Enable/disable the admin panel feature
+admin_panel_enabled: true
+
+# admin_password_hash: htpasswd format (REQUIRED for admin access)
+# Format: username:hash (e.g., "admin:$apr1$...")
+# Supported hash types: Apache MD5 ($apr1$)
+# Generate with: htpasswd -n <your username> <your password>
+admin_password_hash: ""
+

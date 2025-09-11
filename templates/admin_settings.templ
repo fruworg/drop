@@ -1,0 +1,43 @@
+package templates
+
+templ AdminSettingsPanel() {
+	<div x-show="showSettings" class="settings-panel">
+		<h3>Admin Settings</h3>
+		<div class="settings-content">
+			<div class="setting-item">
+				<label>
+					<input type="checkbox" x-model="settings.noConfirmDelete" @change="saveSettings()">
+					Skip delete confirmation dialogs
+				</label>
+			</div>
+			<div class="setting-item">
+				<label>
+					<input type="checkbox" x-model="settings.autoRefresh" @change="saveSettings()">
+					Auto-refresh dashboard every 30 seconds
+				</label>
+			</div>
+			<div class="setting-item">
+				<label>
+					<input type="checkbox" x-model="settings.compactView" @change="saveSettings()">
+					Compact table view
+				</label>
+			</div>
+			<div class="setting-item">
+				<label>
+					<input type="checkbox" x-model="settings.showFileSize" @change="saveSettings()">
+					Show file sizes in table
+				</label>
+			</div>
+			<div class="setting-item">
+				<label>
+					<input type="checkbox" x-model="settings.showUploadDate" @change="saveSettings()">
+					Show upload dates in table
+				</label>
+			</div>
+		</div>
+		<div class="settings-actions">
+			<button @click="resetSettings()">Reset to Defaults</button>
+			<button @click="showSettings = false">Close</button>
+		</div>
+	</div>
+}

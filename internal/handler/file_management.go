@@ -104,7 +104,7 @@ func (h *Handler) handleExpirationUpdate(c echo.Context, expiresStr string, meta
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
 	}
 
-	meta.ExpiresAt = expirationDate
+	meta.ExpiresAt = &expirationDate
 
 	if err = h.db.StoreMetadata(&meta); err != nil {
 		log.Printf("Error: Failed to update expiration for %s by %s: %v", meta.FilePath, c.RealIP(), err)

@@ -85,12 +85,11 @@ func (m *ExpirationManager) calculateRetention(fileSize float64) time.Duration {
 
 // CheckMetadataExpiration checks if a file has expired based on its metadata
 func (m *ExpirationManager) CheckMetadataExpiration(meta model.FileMetadata) (bool, error) {
-	if !meta.ExpiresAt.IsZero() {
-		return time.Now().After(meta.ExpiresAt), nil
+	if meta.ExpiresAt != nil && !meta.ExpiresAt.IsZero() {
+		return time.Now().After(*meta.ExpiresAt), nil
 	}
 
 	if meta.UploadDate.IsZero() {
-		// If upload date is missing, we can't calculate expiration
 		return false, nil
 	}
 
@@ -166,7 +165,38 @@ func (m *ExpirationManager) cleanupExpiredFiles() {
 		}
 	}
 
-	log.Printf("Expiration check complete. Removed %d of %d files", removed, total)
+	orphanCount := m.cleanupOrphanRecords(uploadPath)
+
+	log.Printf("Expiration check complete. Removed %d of %d files, cleaned %d orphan records", removed, total, orphanCount)
+}
+
+// cleanupOrphanRecords removes database records for files that no longer exist on disk
+func (m *ExpirationManager) cleanupOrphanRecords(uploadPath string) int {
+	log.Println("Checking for orphan database records...")
+
+	allMetadata, err := m.db.ListAllMetadata()
+	if err != nil {
+		log.Printf("Error retrieving metadata for orphan check: %v", err)
+		return 0
+	}
+
+	var orphanCount int
+	for _, meta := range allMetadata {
+		if _, err := os.Stat(meta.FilePath); os.IsNotExist(err) {
+			log.Printf("Removing orphan database record for missing file: %s", meta.FilePath)
+			if err := m.db.DeleteMetadata(&meta); err != nil {
+				log.Printf("Error removing orphan record for %s: %v", meta.FilePath, err)
+			} else {
+				orphanCount++
+			}
+		}
+	}
+
+	if orphanCount > 0 {
+		log.Printf("Cleaned up %d orphan database records", orphanCount)
+	}
+
+	return orphanCount
 }
 
 // GetExpirationDate calculates when a file will expire based on its size

@@ -15,6 +15,7 @@ A temporary file hosting service built with Echo, inspired by [0x0.st](https://0
 - Preview protection for one-time links
 - Docker deployment support
 - Chunked uploads for large files with resume capability
+- **Admin panel** for simple file management 
 
 ## Quick Start
 
@@ -149,6 +150,7 @@ curl http://localhost:3000/upload/status/abc123
 ## Documentation
 
 - **[Complete API Documentation](API.md)** - Detailed API reference with examples
+- **[Admin Panel Documentation](ADMIN.md)** - Comprehensive admin panel guide
 - **[Web Interface](https://drop.mz.uy/)** - Interactive upload interface
 - **[Chunked Upload Interface](https://drop.mz.uy/chunked)** - Drag & drop for large files
 

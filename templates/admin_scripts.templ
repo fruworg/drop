@@ -1,0 +1,76 @@
+package templates
+
+templ AdminScripts() {
+	<script>
+		function adminSettings() {
+			return {
+				showSettings: false,
+				settings: {
+					noConfirmDelete: false,
+					autoRefresh: false,
+					compactView: false,
+					showFileSize: true,
+					showUploadDate: true
+				},
+				refreshInterval: null,
+
+				init() {
+					this.loadSettings();
+					this.setupAutoRefresh();
+				},
+
+				loadSettings() {
+					const saved = localStorage.getItem('adminSettings');
+					if (saved) {
+						this.settings = { ...this.settings, ...JSON.parse(saved) };
+					}
+				},
+
+				saveSettings() {
+					localStorage.setItem('adminSettings', JSON.stringify(this.settings));
+					this.setupAutoRefresh();
+				},
+
+				resetSettings() {
+					this.settings = {
+						noConfirmDelete: false,
+						autoRefresh: false,
+						compactView: false,
+						showFileSize: true,
+						showUploadDate: true
+					};
+					localStorage.removeItem('adminSettings');
+					this.setupAutoRefresh();
+				},
+
+				setupAutoRefresh() {
+					if (this.refreshInterval) {
+						clearInterval(this.refreshInterval);
+						this.refreshInterval = null;
+					}
+					
+					if (this.settings.autoRefresh) {
+						this.refreshInterval = setInterval(() => {
+							window.location.reload();
+						}, 30000);
+					}
+				},
+
+				confirmDelete(event) {
+					if (!this.settings.noConfirmDelete) {
+						if (!confirm('Are you sure you want to delete this file?')) {
+							event.preventDefault();
+						}
+					}
+				}
+			}
+		}
+
+		function changePageSize(newLimit) {
+			const url = new URL(window.location);
+			url.searchParams.set('limit', newLimit);
+			url.searchParams.delete('cursor'); // Reset to first page
+			window.location.href = url.toString();
+		}
+	</script>
+}

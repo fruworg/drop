@@ -1,0 +1,27 @@
+package templates
+
+import (
+	"github.com/marianozunino/drop/internal/model"
+)
+
+templ AdminDashboard(files []model.AdminFileInfo, sortField string, sortDirection string, searchQuery string, cursor string, nextCursor string, limit int, totalFiles int, matchingFiles int, totalSize int64) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Admin Dashboard - Drop</title>
+			<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+			@AdminStyles()
+		</head>
+		<body x-data="adminSettings()">
+			@AdminHeader()
+			@AdminSettingsPanel()
+			@AdminStats(files, totalFiles, matchingFiles, totalSize, searchQuery)
+			@AdminSearch(sortField, sortDirection, searchQuery, limit, matchingFiles)
+			@AdminFilesTable(files, sortField, sortDirection, searchQuery, cursor, limit)
+			@AdminPagination(files, sortField, sortDirection, searchQuery, cursor, nextCursor, limit)
+			@AdminScripts()
+		</body>
+	</html>
+}

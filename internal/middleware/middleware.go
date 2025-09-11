@@ -15,7 +15,7 @@ func SecurityHeaders() echo.MiddlewareFunc {
 			c.Response().Header().Set("X-Frame-Options", "sameorigin")
 			c.Response().Header().Set("X-Content-Type-Options", "nosniff")
 			c.Response().Header().Set("X-XSS-Protection", "1; mode=block")
-			c.Response().Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
+			c.Response().Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
 			c.Response().Header().Set("Referrer-Policy", "no-referrer, strict-origin-when-cross-origin")
 			c.Response().Header().Del("Server")
 

@@ -1,0 +1,27 @@
+package templates
+
+import (
+	"strconv"
+)
+
+templ AdminSearch(sortField string, sortDirection string, searchQuery string, limit int, matchingFiles int) {
+	<div class="search-section">
+		<form method="GET" action="/admin" class="search-form">
+			<div class="search-input-group">
+				<input type="text" name="search" placeholder="Search files by name..." value={ searchQuery } class="search-input"/>
+				<input type="hidden" name="sort" value={ sortField }/>
+				<input type="hidden" name="dir" value={ sortDirection }/>
+				<input type="hidden" name="limit" value={ strconv.Itoa(limit) }/>
+				<button type="submit" class="search-btn">Search</button>
+				if searchQuery != "" {
+					<a href={ templ.URL("/admin?sort=" + sortField + "&dir=" + sortDirection + "&limit=" + strconv.Itoa(limit)) } class="clear-search-btn">Clear</a>
+				}
+			</div>
+		</form>
+		if searchQuery != "" {
+			<div class="search-results-info">
+				Found { strconv.Itoa(matchingFiles) } file(s) matching "{ searchQuery }"
+			</div>
+		}
+	</div>
+}

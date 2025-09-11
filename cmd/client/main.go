@@ -555,8 +555,8 @@ func buildFileURL(baseURL, input string) string {
 
 var rootCmd = &cobra.Command{
 	Use:   "drop",
-	Short: "MZ.DROP Client - Upload and manage files",
-	Long: `MZ.DROP Client is a command-line tool for uploading files to a MZ.DROP server.
+	Short: "Drop Client - Upload and manage files",
+	Long: `Drop Client is a command-line tool for uploading files to a Drop server.
 
 Features:
   • Upload local files or files from URLs
@@ -584,7 +584,7 @@ var uploadCmd = &cobra.Command{
 	Use:     "upload [file]",
 	Aliases: []string{"u", "up"},
 	Short:   "Upload a file to the server",
-	Long: `Upload a file to the MZ.DROP server.
+	Long: `Upload a file to the Drop server.
 
 You can upload:
   • Local files: drop upload file.txt

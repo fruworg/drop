@@ -35,7 +35,7 @@ func HomePage(config config.Config) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>MZ.DROP</title><style>\n\t\t\t\tpre {\n\t\t\t\t\twhite-space: pre;\n\t\t\t\t\tfont-family: monospace;\n\t\t\t\t\tline-height: 1.2;\n\t\t\t\t\toverflow-x: auto;\n\t\t\t\t}\n\t\t\t</style></head><body><h1>MZ.DROP</h1><p>Temporary file hoster, inspired by <a href=\"https://0x0.st/\">0x0.st</a> .</p><p><small>A personal service for quick file sharing.</small></p><p><strong>Note:</strong> While inspired by 0x0.st, this implementation is not intended to provide full API compatibility with their service.</p><div>min_age = ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Drop</title><style>\n\t\t\t\tpre {\n\t\t\t\t\twhite-space: pre;\n\t\t\t\t\tfont-family: monospace;\n\t\t\t\t\tline-height: 1.2;\n\t\t\t\t\toverflow-x: auto;\n\t\t\t\t}\n\t\t\t</style></head><body><h1>Drop</h1><p>Temporary file hoster, inspired by <a href=\"https://0x0.st/\">0x0.st</a> .</p><p><small>A personal service for quick file sharing.</small></p><p><strong>Note:</strong> While inspired by 0x0.st, this implementation is not intended to provide full API compatibility with their service.</p><div>min_age = ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -163,7 +163,7 @@ func HomePage(config config.Config) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " MiB (see above).</p><p>For large files (>10MB), consider using the chunked upload feature for better reliability and resume capability.</p></details> <details id=\"client-download\"><summary>Download Client</summary><p>Download the MZ.DROP command-line client for easy file uploads and management:</p><p><strong>One-line install:</strong></p><pre>curl -L ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " MiB (see above).</p><p>For large files (>10MB), consider using the chunked upload feature for better reliability and resume capability.</p></details> <details id=\"client-download\"><summary>Download Client</summary><p>Download the Drop command-line client for easy file uploads and management:</p><p><strong>One-line install:</strong></p><pre>curl -L ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +231,7 @@ curl -L `+DownloadURL(config)+` | sh
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = templ.Raw(`{
-  "url": "http://localhost:8080/abc123.txt",
+  "url": "http://localhost:3000/abc123.txt",
   "size": 1024,
   "token": "management_token_here",
   "md5": "d41d8cd98f00b204e9800998ecf8427e",
@@ -248,8 +248,11 @@ curl -L `+DownloadURL(config)+` | sh
 		templ_7745c5c3_Err = templ.Raw(`{
   "message": "Upload completed",
   "progress": 100,
-  "file_url": "http://localhost:8080/abc123.txt",
-  "md5": "d41d8cd98f00b204e9800998ecf8427e"
+  "file_url": "http://localhost:3000/abc123.txt",
+  "md5": "d41d8cd98f00b204e9800998ecf8427e",
+  "token": "management_token_here",
+  "expires_at": "2024-12-31T23:59:59Z",
+  "expires_in_days": 30
 }`).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -297,7 +300,7 @@ curl -L `+DownloadURL(config)+` | sh
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 189, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 192, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -310,7 +313,7 @@ curl -L `+DownloadURL(config)+` | sh
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 191, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 194, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -595,7 +598,17 @@ Chunked upload process:
 
 3. CHECK STATUS:
    GET `+config.BaseURL+`upload/status/{upload_id}
-   Returns: {"progress": 45, "uploaded_chunks": [0,1,2,3,4,5,6,7,8,9]}
+   Returns: {
+     "upload_id": "abc123",
+     "filename": "large-file.zip",
+     "total_size": 104857600,
+     "chunk_size": 4194304,
+     "total_chunks": 25,
+     "uploaded_chunks": [0,1,2,3,4],
+     "progress": 20,
+     "created_at": "2024-01-01T10:00:00Z",
+     "expires_at": "2024-01-02T10:00:00Z"
+   }
 
 4. FINALIZE:
    When all chunks are uploaded, the file is automatically finalized
