@@ -100,17 +100,17 @@ func (h *Handler) handleFileDelete(c echo.Context, filePath string, meta model.F
 func (h *Handler) handleExpirationUpdate(c echo.Context, expiresStr string, meta model.FileMetadata) error {
 	expirationDate, err := utils.ParseExpirationTime(expiresStr)
 	if err != nil {
-		log.Printf("Invalid expiration format for %s by %s: %v", meta.FilePath, c.RealIP(), err)
+		log.Printf("Invalid expiration format for %s by %s: %v", meta.ResourcePath, c.RealIP(), err)
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid expiration format: %v", err))
 	}
 
 	meta.ExpiresAt = &expirationDate
 
 	if err = h.db.StoreMetadata(&meta); err != nil {
-		log.Printf("Error: Failed to update expiration for %s by %s: %v", meta.FilePath, c.RealIP(), err)
+		log.Printf("Error: Failed to update expiration for %s by %s: %v", meta.ResourcePath, c.RealIP(), err)
 		return c.String(http.StatusInternalServerError, "Failed to update expiration")
 	}
 
-	log.Printf("Expiration updated: %s to %v by %s", meta.FilePath, expirationDate, c.RealIP())
+	log.Printf("Expiration updated: %s to %v by %s", meta.ResourcePath, expirationDate, c.RealIP())
 	return c.String(http.StatusOK, "Expiration updated successfully")
 }

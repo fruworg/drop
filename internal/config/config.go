@@ -26,6 +26,8 @@ type Config struct {
 	StreamingBufferSize      int      `mapstructure:"streaming_buffer_size_kb"`
 	AdminPanelEnabled        bool     `mapstructure:"admin_panel_enabled"`
 	AdminPasswordHash        string   `mapstructure:"admin_password_hash"`
+	IPTrackingEnabled        bool     `mapstructure:"ip_tracking_enabled"`
+	URLShorteningEnabled     bool     `mapstructure:"url_shortening_enabled"`
 }
 
 // LoadConfig loads configuration from file and environment variables using Viper.
@@ -65,8 +67,10 @@ func LoadConfig(configPath string) (*Config, error) {
 		"viber",
 	})
 	v.SetDefault("streaming_buffer_size_kb", 64)
-	v.SetDefault("admin_panel_enabled", true)
+	v.SetDefault("admin_panel_enabled", false)
 	v.SetDefault("admin_password_hash", "")
+	v.SetDefault("ip_tracking_enabled", true)
+	v.SetDefault("url_shortening_enabled", true)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err

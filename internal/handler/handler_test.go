@@ -64,7 +64,7 @@ func createTestFile(t *testing.T, tempDir string, db *db.DB, filename, content s
 	require.NoError(t, err)
 
 	meta := model.FileMetadata{
-		FilePath:     filePath,
+		ResourcePath: filePath,
 		Token:        "test-token",
 		OriginalName: "original-" + filename,
 		Size:         int64(len(content)),
@@ -244,7 +244,7 @@ func TestDifferentContentTypes(t *testing.T) {
 			require.NoError(t, err)
 
 			meta := model.FileMetadata{
-				FilePath:     filePath,
+				ResourcePath: filePath,
 				Token:        "test-token",
 				OriginalName: "original-" + tc.filename,
 				Size:         int64(len(tc.content)),

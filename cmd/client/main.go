@@ -168,6 +168,48 @@ func (c *Client) UploadFromURL(remoteURL string, options map[string]string) (*Up
 	return &uploadResp, nil
 }
 
+func (c *Client) ShortenURL(url string, options map[string]string) (*UploadResponse, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	writer.WriteField("shorten", "true")
+	writer.WriteField("url", url)
+
+	for key, value := range options {
+		if value != "" {
+			writer.WriteField(key, value)
+		}
+	}
+
+	writer.Close()
+
+	req, err := http.NewRequest("POST", c.BaseURL, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to shorten URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("URL shortening failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var uploadResp UploadResponse
+	if err := json.NewDecoder(resp.Body).Decode(&uploadResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &uploadResp, nil
+}
+
 func (c *Client) InitChunkedUpload(filename string, size int64, chunkSize int64) (*ChunkedUploadInitResponse, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -560,6 +602,7 @@ var rootCmd = &cobra.Command{
 
 Features:
   • Upload local files or files from URLs
+  • Shorten URLs with custom options
   • Automatic chunked upload for large files
   • File management (delete, set expiration)
   • Configuration management
@@ -569,6 +612,7 @@ Features:
 Quick start:
   drop upload file.txt                    # Upload a file
   drop upload --url https://example.com/file.txt  # Upload from URL
+  drop shorten https://example.com/long/url  # Shorten a URL
   drop delete abc123 --token your-token   # Delete a file
   drop config set server https://drop.example.com/  # Set server URL`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -737,6 +781,45 @@ Accepts various input formats:
 	},
 }
 
+var shortenCmd = &cobra.Command{
+	Use:     "shorten <url>",
+	Aliases: []string{"s", "short"},
+	Short:   "Shorten a URL",
+	Long: `Shorten a URL with optional settings.
+
+Options:
+  --secret          Generate a hard-to-guess URL
+  --one-time, -o    Delete URL after first access
+  --expires, -e     Set expiration time
+
+Example: drop shorten https://example.com/some/long/url`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		url := args[0]
+		secret, _ := cmd.Flags().GetBool("secret")
+		oneTime, _ := cmd.Flags().GetBool("one-time")
+		expires, _ := cmd.Flags().GetString("expires")
+
+		options := make(map[string]string)
+		if secret {
+			options["secret"] = ""
+		}
+		if oneTime {
+			options["one_time"] = ""
+		}
+		if expires != "" {
+			options["expires"] = FormatExpiration(expires)
+		}
+
+		resp, err := client.ShortenURL(url, options)
+		if err != nil {
+			return err
+		}
+		printURLShorteningResponse(resp)
+		return nil
+	},
+}
+
 var expireCmd = &cobra.Command{
 	Use:     "expire <file_id_or_url>",
 	Aliases: []string{"e", "exp"},
@@ -883,6 +966,13 @@ func printChunkedUploadResponse(resp *ChunkedUploadCompleteResponse, localMD5 st
 	}
 }
 
+func printURLShorteningResponse(resp *UploadResponse) {
+	fmt.Printf("URL shortened successfully!\n")
+	fmt.Printf("Short URL: %s\n", resp.URL)
+	fmt.Printf("Token: %s\n", resp.Token)
+	fmt.Printf("Expires: %s (%s)\n", formatExpirationDate(resp.ExpiresAt), formatDaysRemaining(resp.ExpiresInDays))
+}
+
 func init() {
 	homeDir, _ := os.UserHomeDir()
 	configDir := filepath.Join(homeDir, ".drop")
@@ -911,10 +1001,15 @@ func init() {
 
 	deleteCmd.Flags().StringP("token", "t", "", "File token (required)")
 
+	shortenCmd.Flags().Bool("secret", false, "Generate a hard-to-guess URL")
+	shortenCmd.Flags().BoolP("one-time", "o", false, "Delete URL after first access")
+	shortenCmd.Flags().StringP("expires", "e", "", "Set expiration time (hours, RFC3339, ISO date/datetime, SQL datetime)")
+
 	expireCmd.Flags().StringP("token", "t", "", "File token (required)")
 	expireCmd.Flags().StringP("expires", "e", "", "Expiration time (required)")
 
 	rootCmd.AddCommand(uploadCmd)
+	rootCmd.AddCommand(shortenCmd)
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(expireCmd)
 	rootCmd.AddCommand(configCmd)

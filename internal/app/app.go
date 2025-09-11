@@ -69,7 +69,11 @@ func logConfiguration(cfg *config.Config) {
 	log.Printf("  Max Retention: %d days", cfg.MaxAge)
 	log.Printf("  Check Interval: %d minutes", cfg.CheckInterval)
 	log.Printf("  Expiration Manager: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.ExpirationManagerEnabled])
+	log.Printf("")
+	log.Printf("Feature Flags:")
 	log.Printf("  Admin Panel: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.AdminPanelEnabled])
+	log.Printf("  IP Tracking: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.IPTrackingEnabled])
+	log.Printf("  URL Shortening: %s", map[bool]string{true: "Enabled", false: "Disabled"}[cfg.URLShorteningEnabled])
 	log.Printf("")
 	log.Printf("Preview Bots (%d configured):", len(cfg.PreviewBots))
 	for i, bot := range cfg.PreviewBots {

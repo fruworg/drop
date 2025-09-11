@@ -163,20 +163,85 @@ func HomePage(config config.Config) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " MiB (see above).</p><p>For large files (>10MB), consider using the chunked upload feature for better reliability and resume capability.</p></details> <details id=\"client-download\"><summary>Download Client</summary><p>Download the Drop command-line client for easy file uploads and management:</p><p><strong>One-line install:</strong></p><pre>curl -L ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " MiB (see above).</p><p>For large files (>10MB), consider using the chunked upload feature for better reliability and resume capability.</p></details> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(DownloadURL(config))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 67, Col: 38}
+		if config.URLShorteningEnabled {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<details id=\"url-shortening\"><summary>URL Shortening</summary><p>Shorten long URLs with the same options as file uploads:</p><pre>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = URLShorteningFields(config).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</pre><details><summary>cURL examples</summary><pre>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = URLShorteningExamples(config).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</pre></details><p>Shortened URLs are valid for at least ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var10 string
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(config.MinAge))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 76, Col: 75}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " days and up to ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(config.MaxAge))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 76, Col: 122}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " days (see above).</p><p>Expired URLs won't be removed immediately but within the next ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(config.CheckInterval))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 77, Col: 106}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " minutes.</p></details> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<details id=\"client-download\"><summary>Download Client</summary><p>Download the Drop command-line client for easy file uploads and management:</p><p><strong>One-line install:</strong></p><pre>curl -L ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " | sh</pre><p><strong>Quick Start:</strong></p><pre>")
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(DownloadURL(config))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 84, Col: 38}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " | sh</pre><p><strong>Quick Start:</strong></p><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -197,20 +262,20 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</pre><p><strong>Features:</strong></p><ul><li>Simple command-line interface</li><li>Automatic chunked upload for large files</li><li>Progress tracking and resume capability</li><li>MD5 verification for file integrity</li><li>File management (delete, set expiration)</li><li>Configuration management</li></ul></details> <details id=\"chunked-uploading\"><summary>Chunked Upload (Large Files)</summary><p>For large files, use the chunked upload feature which provides:</p><ul><li>Resume capability - Continue interrupted uploads</li><li>Progress tracking - Monitor upload progress</li><li>Memory efficient - Only 4MB chunks in memory</li><li>Network resilient - Survives connection drops</li><li>Large file support - Handles files up to ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</pre><p><strong>Features:</strong></p><ul><li>Simple command-line interface</li><li>Automatic chunked upload for large files</li><li>Progress tracking and resume capability</li><li>MD5 verification for file integrity</li><li>File management (delete, set expiration)</li><li>Configuration management</li></ul></details> <details id=\"chunked-uploading\"><summary>Chunked Upload (Large Files)</summary><p>For large files, use the chunked upload feature which provides:</p><ul><li>Resume capability - Continue interrupted uploads</li><li>Progress tracking - Monitor upload progress</li><li>Memory efficient - Only 4MB chunks in memory</li><li>Network resilient - Survives connection drops</li><li>Large file support - Handles files up to ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f", config.MaxSize))
+		var templ_7745c5c3_Var14 string
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f", config.MaxSize))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 103, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 120, Col: 87}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " MiB</li></ul><p><strong>🎯 Try the <a href=\"/chunked\" style=\"color: #667eea; text-decoration: none; font-weight: 600;\">Drag & Drop Interface</a> for easy chunked uploads!</strong></p><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " MiB</li></ul><p><strong>🎯 Try the <a href=\"/chunked\" style=\"color: #667eea; text-decoration: none; font-weight: 600;\">Drag & Drop Interface</a> for easy chunked uploads!</strong></p><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -218,7 +283,7 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</pre><details><summary>cURL examples</summary><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</pre><details><summary>cURL examples</summary><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -226,7 +291,7 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</pre></details><p>Upload sessions expire after 24 hours - Complete your upload within this time.</p><p>If interrupted, you can resume by uploading only the missing chunks.</p></details> <details id=\"api-responses\"><summary>API Response Format</summary><p>The service returns different response formats depending on the request:</p><h4>Regular Upload Response (JSON)</h4><p>When uploading with <code>Accept: application/json</code> header:</p><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</pre></details><p>Upload sessions expire after 24 hours - Complete your upload within this time.</p><p>If interrupted, you can resume by uploading only the missing chunks.</p></details> <details id=\"api-responses\"><summary>API Response Format</summary><p>The service returns different response formats depending on the request:</p><h4>Regular Upload Response (JSON)</h4><p>When uploading with <code>Accept: application/json</code> header:</p><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -241,7 +306,7 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</pre><h4>Chunked Upload Completion Response (JSON)</h4><p>When chunked upload completes successfully:</p><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</pre><h4>Chunked Upload Completion Response (JSON)</h4><p>When chunked upload completes successfully:</p><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -257,7 +322,7 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</pre><h4>Response Fields</h4><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</pre><h4>Response Fields</h4><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -285,7 +350,7 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</pre><h4>MD5 Hash Benefits</h4><ul><li><strong>File Integrity</strong>: Verify uploaded files haven't been corrupted</li><li><strong>Duplicate Detection</strong>: Compare MD5 hashes to identify duplicate files</li><li><strong>Data Validation</strong>: Ensure file integrity during transfer</li><li><strong>Audit Trail</strong>: Hash can be used for file tracking and verification</li></ul><p><strong>Note:</strong> MD5 hash is calculated automatically after upload completion. If calculation fails, the field will be an empty string.</p></details> <details id=\"managing\"><summary>Managing your files</summary><pre>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</pre><h4>MD5 Hash Benefits</h4><ul><li><strong>File Integrity</strong>: Verify uploaded files haven't been corrupted</li><li><strong>Duplicate Detection</strong>: Compare MD5 hashes to identify duplicate files</li><li><strong>Data Validation</strong>: Ensure file integrity during transfer</li><li><strong>Audit Trail</strong>: Hash can be used for file tracking and verification</li></ul><p><strong>Note:</strong> MD5 hash is calculated automatically after upload completion. If calculation fails, the field will be an empty string.</p></details> <details id=\"managing\"><summary>Managing your files</summary><pre>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -293,33 +358,33 @@ curl -L `+DownloadURL(config)+` | sh
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</pre><details><summary>cURL examples</summary><p>Delete a file immediately:</p><pre>curl -X POST -F'token=token_here' -F'delete=' ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</pre><details><summary>cURL examples</summary><p>Delete a file immediately:</p><pre>curl -X POST -F'token=token_here' -F'delete=' ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 192, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 209, Col: 72}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "abc.txt</pre><p>Change the expiration date (see above):</p><pre>curl -X POST -F'token=token_here' -F'expires=3' ")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 194, Col: 74}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "abc.txt</pre><p>Change the expiration date (see above):</p><pre>curl -X POST -F'token=token_here' -F'expires=3' ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "abc.txt</pre></details></details> <details><summary>Terms of Service</summary><p>This service is NOT a platform for:</p><ul><li>piracy</li><li>pornography and gore</li><li>extremist material of any kind</li><li>terrorist content</li><li>malware / botnet C&C</li><li>anything related to crypto currencies</li><li>backups</li><li>CI build artifacts</li><li>other automated mass uploads</li><li>doxxing, database dumps containing personal information</li><li>anything illegal</li></ul><p>Uploads found to be in violation of these rules will be removed, and the originating IP address may be blocked from further uploads.</p></details> <details><summary>Privacy Policy</summary><p>For the purpose of moderation, the following is stored with each uploaded file:</p><ul><li>IP address</li><li>User agent string</li></ul><p>This site generally does not log requests, but may enable logging if necessary for purposes such as threat mitigation.</p><p>No data is shared with third parties.</p></details><hr><p>Personal instance inspired by <a href=\"https://0x0.st/\">0x0.st</a>.</p><p>Hosted on mz.uy for personal use.</p></body></html>")
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(config.BaseURL)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/home.templ`, Line: 211, Col: 74}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "abc.txt</pre></details></details> <details><summary>Terms of Service</summary><p>This service is NOT a platform for:</p><ul><li>piracy</li><li>pornography and gore</li><li>extremist material of any kind</li><li>terrorist content</li><li>malware / botnet C&C</li><li>anything related to crypto currencies</li><li>backups</li><li>CI build artifacts</li><li>other automated mass uploads</li><li>doxxing, database dumps containing personal information</li><li>anything illegal</li></ul><p>Uploads found to be in violation of these rules will be removed, and the originating IP address may be blocked from further uploads.</p></details> <details><summary>Privacy Policy</summary><p>For the purpose of moderation, the following is stored with each uploaded file:</p><ul><li>IP address</li><li>User agent string</li></ul><p>This site generally does not log requests, but may enable logging if necessary for purposes such as threat mitigation.</p><p>No data is shared with third parties.</p></details><hr><p>Personal instance inspired by <a href=\"https://0x0.st/\">0x0.st</a>.</p><p>Hosted on mz.uy for personal use.</p></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -343,9 +408,9 @@ func RetentionGraph(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var14 == nil {
-			templ_7745c5c3_Var14 = templ.NopComponent
+		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var17 == nil {
+			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -394,9 +459,9 @@ func ValidFields(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var15 == nil {
-			templ_7745c5c3_Var15 = templ.NopComponent
+		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var18 == nil {
+			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -409,7 +474,14 @@ Valid fields are:
   │ file    │ data       │                                                  │
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ url     │ remote URL │ Mutually exclusive with "file".                  │
-  │         │            │ Remote site must return Content-Length header.   │
+  │         │            │ Remote site must return Content-Length header.   │`+func() string {
+			if config.URLShorteningEnabled {
+				return `
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ shorten │ URL        │ Shorten a URL (mutually exclusive with file/url)│`
+			}
+			return ""
+		}()+`
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL          │
   │         │            │ will be generated.                               │
@@ -453,9 +525,9 @@ func FileManagement() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var16 == nil {
-			templ_7745c5c3_Var16 = templ.NopComponent
+		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var19 == nil {
+			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -505,9 +577,9 @@ func Examples(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var17 == nil {
-			templ_7745c5c3_Var17 = templ.NopComponent
+		templ_7745c5c3_Var20 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var20 == nil {
+			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -552,6 +624,106 @@ func Examples(config config.Config) templ.Component {
 	})
 }
 
+func URLShorteningFields(config config.Config) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var21 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var21 == nil {
+			templ_7745c5c3_Var21 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templ.Raw(`
+Send HTTP POST requests to `+config.BaseURL+` with data encoded as multipart/form-data
+
+Valid fields for URL shortening:
+  ┌─────────┬────────────┬──────────────────────────────────────────────────┐
+  │ field   │ content    │ remarks                                          │
+  ╞═════════╪════════════╪══════════════════════════════════════════════════╡
+  │ shorten │ URL        │ The URL to shorten (required)                    │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL          │
+  │         │            │ will be generated.                               │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ one_time│ (ignored)  │ If present, URL will be deleted after first      │
+  │         │            │ access.                                          │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ expires │ time       │ Sets URL expiration time. Accepts:               │
+  │         │ format     │ - Hours as integer (e.g., 24)                    │
+  │         │            │ - Milliseconds since epoch (e.g., 1681996320000) │
+  │         │            │ - RFC3339 (e.g., 2006-01-02T15:04:05Z07:00)      │
+  │         │            │ - ISO date (e.g., 2006-01-02)                    │
+  │         │            │ - ISO datetime (e.g., 2006-01-02T15:04:05)       │
+  │         │            │ - SQL datetime (e.g., 2006-01-02 15:04:05)       │
+  └─────────┴────────────┴──────────────────────────────────────────────────┘
+
+`).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func URLShorteningExamples(config config.Config) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var22 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var22 == nil {
+			templ_7745c5c3_Var22 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templ.Raw(`
+    Shorten a URL:
+        curl -F'shorten=https://example.com/some/long/url' `+config.BaseURL+`
+
+    Shorten with hard-to-guess URL:
+        curl -F'shorten=https://example.com/some/long/url' -Fsecret= `+config.BaseURL+`
+
+    Create a one-time short URL (deleted after first access):
+        curl -F'shorten=https://example.com/some/long/url' -Fone_time= `+config.BaseURL+`
+
+    Shorten with expiration in hours:
+        curl -F'shorten=https://example.com/some/long/url' -Fexpires=24 `+config.BaseURL+`
+
+    Shorten with expiration date:
+        curl -F'shorten=https://example.com/some/long/url' -Fexpires=2023-04-20 `+config.BaseURL+`
+
+    Combining options (one-time access with expiration and secret URL):
+        curl -F'shorten=https://example.com/some/long/url' -Fone_time= -Fsecret= -Fexpires=24 `+config.BaseURL+`
+	`).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
 func ChunkedUploadFields(config config.Config) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -568,9 +740,9 @@ func ChunkedUploadFields(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var18 == nil {
-			templ_7745c5c3_Var18 = templ.NopComponent
+		templ_7745c5c3_Var23 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var23 == nil {
+			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`
@@ -650,9 +822,9 @@ func ChunkedUploadExamples(config config.Config) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var19 == nil {
-			templ_7745c5c3_Var19 = templ.NopComponent
+		templ_7745c5c3_Var24 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var24 == nil {
+			templ_7745c5c3_Var24 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templ.Raw(`

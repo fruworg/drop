@@ -31,13 +31,19 @@ const (
 
 var filenameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9._-]`) // allow only safe chars
 
-// HandleUpload processes file uploads, either from a form or URL
 func (h *Handler) HandleUpload(c echo.Context) error {
 	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.cfg.MaxSizeToBytes())
 
 	if err := h.parseRequestForm(c); err != nil {
 		log.Printf("[HandleUpload] Failed to parse form: %v", err)
 		return c.String(http.StatusBadRequest, "Invalid request form.")
+	}
+
+	if c.FormValue("shorten") != "" {
+		if !h.cfg.URLShorteningEnabled {
+			return c.String(http.StatusBadRequest, "URL shortening feature is disabled")
+		}
+		return h.HandleURLShortening(c)
 	}
 
 	fileInfo, err := h.extractFileContent(c)
@@ -63,7 +69,7 @@ func (h *Handler) HandleUpload(c echo.Context) error {
 
 	_, oneTimeView := c.Request().Form["one_time"]
 
-	managementToken, err := h.storeFileMetadata(fileInfo.FilePath, fileInfo.OriginalFilename, fileInfo, expirationDate, oneTimeView)
+	managementToken, err := h.storeFileMetadata(fileInfo.FilePath, fileInfo.OriginalFilename, fileInfo, expirationDate, oneTimeView, c)
 	if err != nil {
 		log.Printf("[HandleUpload] Failed to store metadata: %v", err)
 		// Clean up the file if metadata storage fails
@@ -99,6 +105,10 @@ type FileInfo struct {
 }
 
 func (h *Handler) extractFileContent(c echo.Context) (FileInfo, error) {
+	if c.FormValue("shorten") != "" {
+		return FileInfo{}, fmt.Errorf("URL shortening request - handled separately")
+	}
+
 	file, header, err := c.Request().FormFile("file")
 	if err == nil {
 		defer file.Close()
@@ -292,10 +302,32 @@ func (h *Handler) extractFilenameFromURL(url string) string {
 }
 
 func (h *Handler) generateFileID(useSecretId bool) (string, error) {
-	if useSecretId {
-		return generateID(8)
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		var length int
+		if useSecretId {
+			length = 8
+		} else {
+			length = h.cfg.IdLength
+		}
+
+		id, err := generateID(length)
+		if err != nil {
+			return "", err
+		}
+
+		// Check if ID already exists
+		_, err = h.db.GetMetadataByID(id)
+		if err != nil {
+			// ID doesn't exist, we can use it
+			return id, nil
+		}
+
+		// ID exists, try again
+		log.Printf("[generateFileID] Collision detected for ID %s, retrying...", id)
 	}
-	return generateID(h.cfg.IdLength)
+
+	return "", fmt.Errorf("failed to generate unique ID after %d retries", maxRetries)
 }
 
 func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time, error) {
@@ -326,21 +358,30 @@ func (h *Handler) determineExpiration(c echo.Context, fileSize int64) (time.Time
 	return expirationDate, nil
 }
 
-func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time, oneTimeView bool) (string, error) {
+func (h *Handler) storeFileMetadata(filePath, fileName string, fileInfo FileInfo, expirationDate time.Time, oneTimeView bool, c echo.Context) (string, error) {
 	managementToken, err := generateID(16)
 	if err != nil {
 		log.Printf("Warning: Failed to generate management token: %v", err)
 		managementToken = filepath.Base(filePath)
 	}
 
+	var ipAddress string
+	if h.cfg.IPTrackingEnabled {
+		ipAddress = c.RealIP()
+	}
+
 	metadata := model.FileMetadata{
-		FilePath:     filePath,
+		ResourcePath: filePath,
 		Token:        managementToken,
 		OriginalName: fileName,
 		UploadDate:   time.Now(),
 		Size:         fileInfo.Size,
 		ContentType:  fileInfo.ContentType,
 		OneTimeView:  oneTimeView,
+		AccessCount:  0,
+		IPAddress:    ipAddress,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	if !expirationDate.IsZero() {

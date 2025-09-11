@@ -182,10 +182,15 @@ func (m *ExpirationManager) cleanupOrphanRecords(uploadPath string) int {
 
 	var orphanCount int
 	for _, meta := range allMetadata {
-		if _, err := os.Stat(meta.FilePath); os.IsNotExist(err) {
-			log.Printf("Removing orphan database record for missing file: %s", meta.FilePath)
+		// Skip URL shorteners - they don't have actual files on disk
+		if meta.IsURLShortener {
+			continue
+		}
+
+		if _, err := os.Stat(meta.ResourcePath); os.IsNotExist(err) {
+			log.Printf("Removing orphan database record for missing file: %s", meta.ResourcePath)
 			if err := m.db.DeleteMetadata(&meta); err != nil {
-				log.Printf("Error removing orphan record for %s: %v", meta.FilePath, err)
+				log.Printf("Error removing orphan record for %s: %v", meta.ResourcePath, err)
 			} else {
 				orphanCount++
 			}

@@ -15,7 +15,8 @@ A temporary file hosting service built with Echo, inspired by [0x0.st](https://0
 - Preview protection for one-time links
 - Docker deployment support
 - Chunked uploads for large files with resume capability
-- **Admin panel** for simple file management 
+- **Admin panel** for simple file management
+- **Configurable privacy features** (IP tracking can be disabled)
 
 ## Quick Start
 
@@ -76,6 +77,9 @@ preview_bots:
   - skype
   - viber
 streaming_buffer_size_kb: 64
+admin_panel_enabled: false
+ip_tracking_enabled: true
+url_shortening_enabled: true
 ```
 
 ### Configuration Options
@@ -93,6 +97,39 @@ streaming_buffer_size_kb: 64
 - `chunk_size_mib` - Size of chunks for chunked uploads in MiB
 - `preview_bots` - List of user-agent substrings to identify preview bots
 - `streaming_buffer_size_kb` - Buffer size for streaming file content (in KB)
+- `admin_panel_enabled` - Enable/disable the admin panel feature
+- `ip_tracking_enabled` - Enable/disable IP address tracking for uploaded files
+- `url_shortening_enabled` - Enable/disable URL shortening feature
+
+### Feature Flags
+
+Drop includes several feature flags that allow you to control specific functionality:
+
+#### IP Tracking (`ip_tracking_enabled`)
+- **Default**: `true`
+- **Purpose**: Controls whether to capture and store IP addresses of users who upload files
+- **Use Cases**:
+  - Set to `false` for GDPR/privacy compliance
+  - Reduce database storage requirements
+  - Disable for privacy-focused deployments
+- **Behavior**: When disabled, the `ip_address` field in the database remains empty
+
+#### URL Shortening (`url_shortening_enabled`)
+- **Default**: `true`
+- **Purpose**: Controls the URL shortening feature that allows creating short links to external URLs
+- **Use Cases**:
+  - Disable if you only need file hosting (not URL shortening)
+  - Reduce attack surface by disabling unused features
+  - Simplify the service for specific use cases
+- **Behavior**: When disabled, requests with `shorten` parameter return "URL shortening feature is disabled" error
+
+#### Admin Panel (`admin_panel_enabled`)
+- **Default**: `false`
+- **Purpose**: Controls access to the administrative web interface
+- **Requirements**: When enabled, `admin_password_hash` must be configured
+- **Use Cases**:
+  - Enable for file management and monitoring
+  - Disable for headless/API-only deployments
 
 ## API Usage
 
@@ -116,6 +153,24 @@ curl -F'file=@yourfile.png' -F'expires=24' http://localhost:3000/
 
 # JSON response
 curl -H "Accept: application/json" -F'file=@yourfile.png' http://localhost:3000/
+```
+
+### URL Shortening
+
+**Note**: This feature can be disabled via the `url_shortening_enabled` configuration flag.
+
+```bash
+# Shorten a URL
+curl -F'shorten=' -F'url=https://example.com' http://localhost:3000/
+
+# Shorten with custom expiration (24 hours)
+curl -F'shorten=' -F'url=https://example.com' -F'expires=24' http://localhost:3000/
+
+# Create a one-time short URL
+curl -F'shorten=' -F'url=https://example.com' -F'one_time=' http://localhost:3000/
+
+# JSON response for URL shortening
+curl -H "Accept: application/json" -F'shorten=' -F'url=https://example.com' http://localhost:3000/
 ```
 
 ### File Management

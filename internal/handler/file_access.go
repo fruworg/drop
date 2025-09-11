@@ -17,8 +17,13 @@ import (
 	"github.com/marianozunino/drop/templates"
 )
 
-// HandleFileAccess serves the requested file to the client
 func (h *Handler) HandleFileAccess(c echo.Context) error {
+	filename := c.Param("filename")
+	
+	meta, err := h.db.GetMetadataByID(filename)
+	if err == nil && meta.IsURLShortener {
+		return h.HandleURLRedirect(c)
+	}
 	filePath, err := h.validateAndResolvePath(c)
 	if err != nil {
 		if os.IsNotExist(err) || os.IsPermission(err) {
@@ -29,19 +34,16 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Server error")
 	}
 
-	// Get file metadata
-	meta, err := h.getFileMetadata(filePath)
+	meta, err = h.getFileMetadata(filePath)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to get metadata")
 	}
 
-	// Check if this is a preview bot request for a one-time file
 	isPreviewBot := h.isLinkPreviewBot(c.Request())
 	if meta.OneTimeView && isPreviewBot {
 		return h.servePlaceholderForPreviewBot(c)
 	}
 
-	// Open the file for reading
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("Error: Failed to open file for download: %v", err)
@@ -54,20 +56,16 @@ func (h *Handler) HandleFileAccess(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to stat file")
 	}
 
-	// Set response headers
 	h.setResponseHeaders(c, meta, fileInfo)
 
-	// Check for conditional requests (If-None-Match, If-Modified-Since)
 	if h.handleConditionalRequest(c, meta, fileInfo) {
 		return nil
 	}
 
-	// Handle Range requests for better streaming
 	if rangeHeader := c.Request().Header.Get("Range"); rangeHeader != "" {
 		return h.handleRangeRequest(c, file, fileInfo, meta)
 	}
 
-	// Set Content-Disposition header if not already set
 	contentDisposition := c.Response().Header().Get("Content-Disposition")
 	if contentDisposition == "" {
 		if shouldDisplayInline(meta.ContentType) {

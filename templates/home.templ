@@ -12,7 +12,7 @@ templ HomePage(config config.Config) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>Drop</title>
+			<title>Drop</title> 
 			<style>
 				pre {
 					white-space: pre;
@@ -60,6 +60,23 @@ templ HomePage(config config.Config) {
 				<p>Maximum file size: { fmt.Sprintf("%.1f", config.MaxSize) } MiB (see above).</p>
 				<p>For large files (>10MB), consider using the chunked upload feature for better reliability and resume capability.</p>
 			</details>
+			if config.URLShorteningEnabled {
+				<details id="url-shortening">
+					<summary>URL Shortening</summary>
+					<p>Shorten long URLs with the same options as file uploads:</p>
+					<pre>
+						@URLShorteningFields(config)
+					</pre>
+					<details>
+						<summary>cURL examples</summary>
+						<pre>
+							@URLShorteningExamples(config)
+						</pre>
+					</details>
+					<p>Shortened URLs are valid for at least { strconv.Itoa(config.MinAge) } days and up to { strconv.Itoa(config.MaxAge) } days (see above).</p>
+					<p>Expired URLs won't be removed immediately but within the next { strconv.Itoa(config.CheckInterval) } minutes.</p>
+				</details>
+			}
 			<details id="client-download">
 				<summary>Download Client</summary>
 				<p>Download the Drop command-line client for easy file uploads and management:</p>
@@ -269,7 +286,14 @@ Valid fields are:
   │ file    │ data       │                                                  │
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ url     │ remote URL │ Mutually exclusive with "file".                  │
-  │         │            │ Remote site must return Content-Length header.   │
+  │         │            │ Remote site must return Content-Length header.   │` + func() string {
+		if config.URLShorteningEnabled {
+			return `
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ shorten │ URL        │ Shorten a URL (mutually exclusive with file/url)│`
+		}
+		return ""
+	}() + `
   ├─────────┼────────────┼──────────────────────────────────────────────────┤
   │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL          │
   │         │            │ will be generated.                               │
@@ -354,6 +378,56 @@ templ Examples(config config.Config) {
 
     Combining options (one-time view with expiration and secret URL):
         curl -F'file=@yourfile.png' -Fone_time= -Fsecret= -Fexpires=24 ` + config.BaseURL + `
+	`)
+}
+
+templ URLShorteningFields(config config.Config) {
+	@templ.Raw(`
+Send HTTP POST requests to ` + config.BaseURL + ` with data encoded as multipart/form-data
+
+Valid fields for URL shortening:
+  ┌─────────┬────────────┬──────────────────────────────────────────────────┐
+  │ field   │ content    │ remarks                                          │
+  ╞═════════╪════════════╪══════════════════════════════════════════════════╡
+  │ shorten │ URL        │ The URL to shorten (required)                    │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ secret  │ (ignored)  │ If present, a longer, hard-to-guess URL          │
+  │         │            │ will be generated.                               │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ one_time│ (ignored)  │ If present, URL will be deleted after first      │
+  │         │            │ access.                                          │
+  ├─────────┼────────────┼──────────────────────────────────────────────────┤
+  │ expires │ time       │ Sets URL expiration time. Accepts:               │
+  │         │ format     │ - Hours as integer (e.g., 24)                    │
+  │         │            │ - Milliseconds since epoch (e.g., 1681996320000) │
+  │         │            │ - RFC3339 (e.g., 2006-01-02T15:04:05Z07:00)      │
+  │         │            │ - ISO date (e.g., 2006-01-02)                    │
+  │         │            │ - ISO datetime (e.g., 2006-01-02T15:04:05)       │
+  │         │            │ - SQL datetime (e.g., 2006-01-02 15:04:05)       │
+  └─────────┴────────────┴──────────────────────────────────────────────────┘
+
+`)
+}
+
+templ URLShorteningExamples(config config.Config) {
+	@templ.Raw(`
+    Shorten a URL:
+        curl -F'shorten=https://example.com/some/long/url' ` + config.BaseURL + `
+
+    Shorten with hard-to-guess URL:
+        curl -F'shorten=https://example.com/some/long/url' -Fsecret= ` + config.BaseURL + `
+
+    Create a one-time short URL (deleted after first access):
+        curl -F'shorten=https://example.com/some/long/url' -Fone_time= ` + config.BaseURL + `
+
+    Shorten with expiration in hours:
+        curl -F'shorten=https://example.com/some/long/url' -Fexpires=24 ` + config.BaseURL + `
+
+    Shorten with expiration date:
+        curl -F'shorten=https://example.com/some/long/url' -Fexpires=2023-04-20 ` + config.BaseURL + `
+
+    Combining options (one-time access with expiration and secret URL):
+        curl -F'shorten=https://example.com/some/long/url' -Fone_time= -Fsecret= -Fexpires=24 ` + config.BaseURL + `
 	`)
 }
 

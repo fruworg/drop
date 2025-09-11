@@ -162,7 +162,7 @@ func (h *Handler) UploadChunk(c echo.Context) error {
 
 	if h.isUploadComplete(upload) {
 		log.Printf("All chunks uploaded for %s, finalizing...", upload.Filename)
-		managementToken, err := h.finalizeChunkedUpload(upload)
+		managementToken, err := h.finalizeChunkedUpload(upload, c)
 		if err != nil {
 			log.Printf("Failed to finalize upload for %s: %v", upload.Filename, err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to finalize upload"})
@@ -286,7 +286,7 @@ func (h *Handler) calculateProgress(upload *ChunkedUpload) int {
 }
 
 // finalizeChunkedUpload combines all chunks into the final file
-func (h *Handler) finalizeChunkedUpload(upload *ChunkedUpload) (string, error) {
+func (h *Handler) finalizeChunkedUpload(upload *ChunkedUpload, c echo.Context) (string, error) {
 	uploadDir := filepath.Join(h.cfg.UploadPath, upload.UploadID)
 
 	fileExt := filepath.Ext(upload.Filename)
@@ -328,14 +328,23 @@ func (h *Handler) finalizeChunkedUpload(upload *ChunkedUpload) (string, error) {
 
 	expirationDate := h.expManager.GetExpirationDate(upload.TotalSize)
 
+	var ipAddress string
+	if h.cfg.IPTrackingEnabled {
+		ipAddress = c.RealIP()
+	}
+
 	metadata := model.FileMetadata{
-		FilePath:     finalPath,
+		ResourcePath: finalPath,
 		Token:        managementToken,
 		OriginalName: upload.Filename,
 		UploadDate:   time.Now(),
 		Size:         upload.TotalSize,
 		ContentType:  contentType,
 		OneTimeView:  false,
+		AccessCount:  0,
+		IPAddress:    ipAddress,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	if !expirationDate.IsZero() {

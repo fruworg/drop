@@ -53,9 +53,11 @@ func (db *DB) StoreMetadata(metadata Storeable) error {
 
 	stmt, err := db.Prepare(`
 		INSERT OR REPLACE INTO metadata (
-			id, file_path, token, original_name, 
-			upload_date, expires_at, size, content_type, one_time_view
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, resource_path, token, original_name, 
+			upload_date, expires_at, size, content_type, one_time_view,
+			original_url, is_url_shortener, access_count, ip_address, 
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`)
 	if err != nil {
 		return err
@@ -64,7 +66,7 @@ func (db *DB) StoreMetadata(metadata Storeable) error {
 
 	_, err = stmt.Exec(
 		metadata.ID(),
-		fileMeta.FilePath,
+		fileMeta.ResourcePath,
 		fileMeta.Token,
 		fileMeta.OriginalName,
 		fileMeta.UploadDate,
@@ -72,6 +74,12 @@ func (db *DB) StoreMetadata(metadata Storeable) error {
 		fileMeta.Size,
 		fileMeta.ContentType,
 		fileMeta.OneTimeView,
+		fileMeta.OriginalURL,
+		fileMeta.IsURLShortener,
+		fileMeta.AccessCount,
+		fileMeta.IPAddress,
+		fileMeta.CreatedAt,
+		fileMeta.UpdatedAt,
 	)
 	return err
 }
@@ -82,11 +90,12 @@ func (db *DB) GetMetadataByID(ID string) (model.FileMetadata, error) {
 	var expiresAt sql.NullTime
 
 	err := db.QueryRow(`
-		SELECT file_path, token, original_name, upload_date, expires_at, 
-		       size, content_type, one_time_view
+		SELECT resource_path, token, original_name, upload_date, expires_at, 
+		       size, content_type, one_time_view, original_url, is_url_shortener,
+		       access_count, ip_address, created_at, updated_at
 		FROM metadata WHERE id = ?
 	`, ID).Scan(
-		&metadata.FilePath,
+		&metadata.ResourcePath,
 		&metadata.Token,
 		&metadata.OriginalName,
 		&metadata.UploadDate,
@@ -94,6 +103,12 @@ func (db *DB) GetMetadataByID(ID string) (model.FileMetadata, error) {
 		&metadata.Size,
 		&metadata.ContentType,
 		&metadata.OneTimeView,
+		&metadata.OriginalURL,
+		&metadata.IsURLShortener,
+		&metadata.AccessCount,
+		&metadata.IPAddress,
+		&metadata.CreatedAt,
+		&metadata.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -115,10 +130,11 @@ func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 	var metadataList []model.FileMetadata
 
 	rows, err := db.Query(`
-		SELECT file_path, token, original_name, upload_date, expires_at, 
-		       size, content_type, one_time_view
+		SELECT resource_path, token, original_name, upload_date, expires_at, 
+		       size, content_type, one_time_view, original_url, is_url_shortener,
+		       access_count, ip_address, created_at, updated_at
 		FROM metadata
-		WHERE file_path IS NOT NULL
+		WHERE resource_path IS NOT NULL
 	`)
 	if err != nil {
 		return nil, err
@@ -129,7 +145,7 @@ func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 		var metadata model.FileMetadata
 		var expiresAt sql.NullTime
 		err := rows.Scan(
-			&metadata.FilePath,
+			&metadata.ResourcePath,
 			&metadata.Token,
 			&metadata.OriginalName,
 			&metadata.UploadDate,
@@ -137,6 +153,12 @@ func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 			&metadata.Size,
 			&metadata.ContentType,
 			&metadata.OneTimeView,
+			&metadata.OriginalURL,
+			&metadata.IsURLShortener,
+			&metadata.AccessCount,
+			&metadata.IPAddress,
+			&metadata.CreatedAt,
+			&metadata.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -173,7 +195,7 @@ func (db *DB) ListMetadataFilteredAndSorted(searchQuery, sortField, sortDirectio
 	// Build WHERE clause for search
 	whereClause := ""
 	if searchQuery != "" {
-		whereClause = "WHERE (LOWER(REPLACE(file_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)"
+		whereClause = "WHERE (LOWER(REPLACE(resource_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)"
 		searchPattern := "%" + strings.ToLower(searchQuery) + "%"
 		args = append(args, searchPattern, searchPattern)
 	}
@@ -182,7 +204,7 @@ func (db *DB) ListMetadataFilteredAndSorted(searchQuery, sortField, sortDirectio
 	orderBy := "ORDER BY "
 	switch sortField {
 	case "filename":
-		orderBy += "file_path"
+		orderBy += "resource_path"
 	case "originalName":
 		orderBy += "original_name"
 	case "size":
@@ -204,8 +226,9 @@ func (db *DB) ListMetadataFilteredAndSorted(searchQuery, sortField, sortDirectio
 
 	// Build the complete query
 	query = fmt.Sprintf(`
-		SELECT file_path, token, original_name, upload_date, expires_at, 
-		       size, content_type, one_time_view
+		SELECT resource_path, token, original_name, upload_date, expires_at, 
+		       size, content_type, one_time_view, original_url, is_url_shortener,
+		       access_count, ip_address, created_at, updated_at
 		FROM metadata 
 		%s 
 		%s
@@ -222,7 +245,7 @@ func (db *DB) ListMetadataFilteredAndSorted(searchQuery, sortField, sortDirectio
 		var metadata model.FileMetadata
 		var expiresAt sql.NullTime
 		err := rows.Scan(
-			&metadata.FilePath,
+			&metadata.ResourcePath,
 			&metadata.Token,
 			&metadata.OriginalName,
 			&metadata.UploadDate,
@@ -230,6 +253,12 @@ func (db *DB) ListMetadataFilteredAndSorted(searchQuery, sortField, sortDirectio
 			&metadata.Size,
 			&metadata.ContentType,
 			&metadata.OneTimeView,
+			&metadata.OriginalURL,
+			&metadata.IsURLShortener,
+			&metadata.AccessCount,
+			&metadata.IPAddress,
+			&metadata.CreatedAt,
+			&metadata.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -252,7 +281,7 @@ func (db *DB) CountMetadataFiltered(searchQuery string) (int, error) {
 
 	if searchQuery != "" {
 		searchPattern := "%" + strings.ToLower(searchQuery) + "%"
-		err := db.Get(&count, "SELECT COUNT(*) FROM metadata WHERE (LOWER(REPLACE(file_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)", searchPattern, searchPattern)
+		err := db.Get(&count, "SELECT COUNT(*) FROM metadata WHERE (LOWER(REPLACE(resource_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)", searchPattern, searchPattern)
 		return count, err
 	} else {
 		err := db.Get(&count, "SELECT COUNT(*) FROM metadata")
@@ -275,7 +304,7 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 	// Build WHERE clause for search
 	whereClause := ""
 	if searchQuery != "" {
-		whereClause = "WHERE (LOWER(REPLACE(file_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)"
+		whereClause = "WHERE (LOWER(REPLACE(resource_path, 'uploads/', '')) LIKE ? OR LOWER(original_name) LIKE ?)"
 		searchPattern := "%" + strings.ToLower(searchQuery) + "%"
 		args = append(args, searchPattern, searchPattern)
 	}
@@ -285,12 +314,12 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 	cursorCondition := ""
 	switch sortField {
 	case "filename":
-		orderBy += "file_path"
+		orderBy += "resource_path"
 		if cursor != "" {
 			if sortDirection == "asc" {
-				cursorCondition = " AND file_path > ?"
+				cursorCondition = " AND resource_path > ?"
 			} else {
-				cursorCondition = " AND file_path < ?"
+				cursorCondition = " AND resource_path < ?"
 			}
 		}
 	case "originalName":
@@ -364,8 +393,9 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 
 	// Build the complete query
 	query = fmt.Sprintf(`
-		SELECT file_path, token, original_name, upload_date, expires_at, 
-		       size, content_type, one_time_view
+		SELECT resource_path, token, original_name, upload_date, expires_at, 
+		       size, content_type, one_time_view, original_url, is_url_shortener,
+		       access_count, ip_address, created_at, updated_at
 		FROM metadata 
 		%s 
 		%s
@@ -385,7 +415,7 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 		var metadata model.FileMetadata
 		var expiresAt sql.NullTime
 		err := rows.Scan(
-			&metadata.FilePath,
+			&metadata.ResourcePath,
 			&metadata.Token,
 			&metadata.OriginalName,
 			&metadata.UploadDate,
@@ -393,6 +423,12 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 			&metadata.Size,
 			&metadata.ContentType,
 			&metadata.OneTimeView,
+			&metadata.OriginalURL,
+			&metadata.IsURLShortener,
+			&metadata.AccessCount,
+			&metadata.IPAddress,
+			&metadata.CreatedAt,
+			&metadata.UpdatedAt,
 		)
 		if err != nil {
 			return nil, "", err
@@ -410,7 +446,7 @@ func (db *DB) ListMetadataFilteredAndSortedWithPagination(searchQuery, sortField
 			// Determine cursor value based on sort field
 			switch sortField {
 			case "filename":
-				nextCursor = metadata.FilePath
+				nextCursor = metadata.ResourcePath
 			case "originalName":
 				nextCursor = metadata.OriginalName
 			case "size":

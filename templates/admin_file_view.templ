@@ -142,13 +142,13 @@ templ AdminFileView(file model.AdminFileInfo) {
 
 			<div class="content">
 				<div class="file-link">
-					<strong>File URL:</strong> <a href={ templ.URL("/" + filepath.Base(file.FilePath)) } target="_blank">/{ filepath.Base(file.FilePath) }</a>
+					<strong>File URL:</strong> <a href={ templ.URL("/" + filepath.Base(file.ResourcePath)) } target="_blank">/{ filepath.Base(file.ResourcePath) }</a>
 				</div>
 
 				<div class="file-info">
 					<div class="info-group">
 						<div class="info-label">Filename</div>
-						<div class="info-value">{ filepath.Base(file.FilePath) }</div>
+						<div class="info-value">{ filepath.Base(file.ResourcePath) }</div>
 					</div>
 					<div class="info-group">
 						<div class="info-label">Original Name</div>
@@ -229,7 +229,7 @@ templ AdminFileView(file model.AdminFileInfo) {
 				<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
 					<h3>Danger Zone</h3>
 					<p style="color: #666; margin-bottom: 15px;">Permanently delete this file. This action cannot be undone.</p>
-					<a href={ templ.URL("/admin/file/" + filepath.Base(file.FilePath) + "/delete") } class="btn delete-btn" @click="confirmDeleteFile($event)">Delete File</a>
+					<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete") } class="btn delete-btn" @click="confirmDeleteFile($event)">Delete File</a>
 				</div>
 			</div>
 		</body>

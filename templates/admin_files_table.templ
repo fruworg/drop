@@ -84,7 +84,7 @@ templ AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirecti
 				<tbody>
 					for _, file := range files {
 						<tr>
-							<td class="filename">{ filepath.Base(file.FilePath) }</td>
+							<td class="filename">{ filepath.Base(file.ResourcePath) }</td>
 							<td>{ file.OriginalName }</td>
 							<td class="size">{ FormatBytes(file.Size) }</td>
 							<td>{ file.UploadDate.Format("2006-01-02 15:04") }</td>
@@ -106,8 +106,8 @@ templ AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirecti
 							</td>
 							<td>
 								<div class="actions">
-									<a href={ templ.URL("/admin/file/" + filepath.Base(file.FilePath)) } class="btn btn-view">View</a>
-									<a href={ templ.URL(GetDeleteURL(filepath.Base(file.FilePath), sortField, sortDirection, searchQuery, limit)) } class="btn btn-delete" @click="confirmDelete($event)">Delete</a>
+									<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath)) } class="btn btn-view">View</a>
+									<a href={ templ.URL(GetDeleteURL(filepath.Base(file.ResourcePath), sortField, sortDirection, searchQuery, limit)) } class="btn btn-delete" @click="confirmDelete($event)">Delete</a>
 								</div>
 							</td>
 						</tr>
