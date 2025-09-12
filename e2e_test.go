@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,10 +13,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/marianozunino/drop/internal/app"
+	"github.com/marianozunino/drop/internal/config"
+	"github.com/marianozunino/drop/internal/testutil"
 )
 
-const (
-	baseURL = "http://localhost:3000"
+var (
+	baseURL = "http://localhost:0" // Will be updated with actual port
+	testApp *app.App
 )
 
 type TestResult struct {
@@ -26,15 +32,61 @@ type TestResult struct {
 }
 
 func TestMain(m *testing.M) {
-	if !isServerRunning() {
-		fmt.Println("Server is not running at", baseURL)
-		fmt.Println("Please start the server with: go run cmd/drop/main.go")
+	// Setup test environment
+	tempDir, err := os.MkdirTemp("", "drop-e2e-test")
+	if err != nil {
+		fmt.Printf("Failed to create temp directory: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test configuration
+	testDBPath := filepath.Join(tempDir, "test.db")
+	cfg := &config.Config{
+		Port:                     8081, // Use a specific port for E2E tests
+		UploadPath:               filepath.Join(tempDir, "uploads"),
+		MinAge:                   1,
+		MaxAge:                   30,
+		MaxSize:                  250.0,
+		CheckInterval:            60,
+		ExpirationManagerEnabled: true,
+		BaseURL:                  "http://localhost:8081/",
+		SQLitePath:               testDBPath,
+		IdLength:                 4,
+		PreviewBots: []string{
+			"slack",
+			"slackbot",
+			"facebookexternalhit",
+			"twitterbot",
+		},
+		URLShorteningEnabled: true,
+	}
+
+	// Create and start test app
+	testApp, err = createTestApp(cfg)
+	if err != nil {
+		fmt.Printf("Failed to create test app: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Start the server
+	testApp.Start()
+
+	// Wait for server to start
+	time.Sleep(100 * time.Millisecond)
+	baseURL = fmt.Sprintf("http://localhost:%d", cfg.Port)
+
+	// Wait for server to be ready
+	if !waitForServer(baseURL, 5*time.Second) {
+		fmt.Printf("Server failed to start at %s\n", baseURL)
+		testApp.Stop()
 		os.Exit(1)
 	}
 
 	fmt.Println("Starting E2E tests against", baseURL)
 	fmt.Println(strings.Repeat("=", 50))
 
+	// Run tests
 	code := m.Run()
 
 	fmt.Println(strings.Repeat("=", 50))
@@ -44,16 +96,44 @@ func TestMain(m *testing.M) {
 		fmt.Println("Some tests failed!")
 	}
 
+	// Stop the server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	testApp.Shutdown(ctx)
+	testApp.Stop()
+
 	os.Exit(code)
 }
 
-func isServerRunning() bool {
-	resp, err := http.Get(baseURL)
+// createTestApp creates a test app instance with the given configuration
+func createTestApp(cfg *config.Config) (*app.App, error) {
+	// Create app with custom config
+	testApp, err := app.NewWithConfig(cfg)
 	if err != nil {
-		return false
+		return nil, err
 	}
-	defer resp.Body.Close()
-	return resp.StatusCode == 200
+
+	// Run migrations for the test database
+	err = testutil.RunTestMigrationsFromProjectRoot(cfg.SQLitePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return testApp, nil
+}
+
+// waitForServer waits for the server to be ready
+func waitForServer(url string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err == nil {
+			resp.Body.Close()
+			return resp.StatusCode == 200
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
 }
 
 func TestFileUpload(t *testing.T) {
@@ -316,7 +396,7 @@ func TestURLShorteningWithOptions(t *testing.T) {
 			start := time.Now()
 
 			// Shorten URL with options
-			shortURL, err := shortenURLWithOptions(tt.originalURL, tt.options)
+			shortURL, _, err := shortenURLWithOptions(tt.originalURL, tt.options)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error for %s, but got none", tt.name)
@@ -591,6 +671,131 @@ func TestFileDeletion(t *testing.T) {
 	}
 }
 
+func TestURLShortenerDeletion(t *testing.T) {
+	tests := []struct {
+		name        string
+		originalURL string
+		options     map[string]string
+		expectError bool
+	}{
+		{
+			name:        "Delete basic URL shortener",
+			originalURL: "https://example.com/basic",
+			options:     nil,
+		},
+		{
+			name:        "Delete URL shortener with expiration",
+			originalURL: "https://example.com/expire",
+			options: map[string]string{
+				"expires": "24", // 24 hours
+			},
+		},
+		{
+			name:        "Delete URL shortener with secret ID",
+			originalURL: "https://example.com/secret",
+			options: map[string]string{
+				"secret": "true",
+			},
+		},
+		{
+			name:        "Delete URL shortener with one-time view (test auto-deletion)",
+			originalURL: "https://example.com/onetime",
+			options: map[string]string{
+				"one_time": "true",
+			},
+			expectError: true, // One-time URLs auto-delete after first access
+		},
+		{
+			name:        "Delete URL shortener with all options (test auto-deletion)",
+			originalURL: "https://example.com/all-options",
+			options: map[string]string{
+				"expires":  "48", // 48 hours
+				"secret":   "true",
+				"one_time": "true",
+			},
+			expectError: true, // One-time URLs auto-delete after first access
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := time.Now()
+
+			// Shorten URL with options
+			shortURL, token, err := shortenURLWithOptions(tt.originalURL, tt.options)
+			if err != nil {
+				t.Errorf("URL shortening failed: %v", err)
+				return
+			}
+
+			// Extract short ID from URL
+			shortID := extractFileIDFromURL(shortURL)
+			if shortID == "" {
+				t.Errorf("Could not extract short ID from URL: %s", shortURL)
+				return
+			}
+
+			if token == "" {
+				t.Errorf("No token received from shorten response")
+				return
+			}
+
+			if tt.expectError {
+				// For one-time view URLs, test that they auto-delete after first access
+				redirectURL, err := getRedirectURL(shortURL)
+				if err != nil {
+					t.Errorf("One-time URL should work on first access: %v", err)
+					return
+				}
+
+				if redirectURL != tt.originalURL {
+					t.Errorf("Expected redirect to %s, got %s", tt.originalURL, redirectURL)
+					return
+				}
+
+				// Try to access again - should fail because it's auto-deleted
+				_, err = getRedirectURL(shortURL)
+				if err == nil {
+					t.Errorf("One-time URL should be auto-deleted after first access")
+				} else {
+					t.Logf("%s - One-time URL correctly auto-deleted after first access", tt.name)
+				}
+			} else {
+				// For regular URLs, test manual deletion
+				// Verify URL shortener works before deletion
+				redirectURL, err := getRedirectURL(shortURL)
+				if err != nil {
+					t.Errorf("URL shortener should work before deletion: %v", err)
+					return
+				}
+
+				if redirectURL != tt.originalURL {
+					t.Errorf("Expected redirect to %s, got %s", tt.originalURL, redirectURL)
+					return
+				}
+
+				// Delete URL shortener
+				err = deleteFile(shortID, token)
+				if err != nil {
+					t.Errorf("URL shortener deletion failed: %v", err)
+					return
+				}
+
+				// Verify URL shortener is deleted
+				_, err = getRedirectURL(shortURL)
+				if err == nil {
+					t.Errorf("URL shortener should be deleted but still accessible")
+				} else {
+					t.Logf("%s - URL shortener successfully deleted", tt.name)
+				}
+			}
+
+			duration := time.Since(start)
+			t.Logf("%s - Deleted: %s, Duration: %v", tt.name, shortURL, duration)
+		})
+	}
+}
+
 func TestConcurrentOperations(t *testing.T) {
 	t.Run("Concurrent file uploads", func(t *testing.T) {
 		const numUploads = 5
@@ -709,11 +914,9 @@ func uploadFileWithOptions(filePath string, options map[string]string) (string, 
 	}
 
 	// Add options
-	if options != nil {
-		for key, value := range options {
-			if value != "" {
-				writer.WriteField(key, value)
-			}
+	for key, value := range options {
+		if value != "" {
+			writer.WriteField(key, value)
 		}
 	}
 
@@ -781,10 +984,11 @@ func downloadFile(uploadURL string) (string, error) {
 }
 
 func shortenURL(originalURL string) (string, error) {
-	return shortenURLWithOptions(originalURL, nil)
+	shortURL, _, err := shortenURLWithOptions(originalURL, nil)
+	return shortURL, err
 }
 
-func shortenURLWithOptions(originalURL string, options map[string]string) (string, error) {
+func shortenURLWithOptions(originalURL string, options map[string]string) (string, string, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -792,22 +996,20 @@ func shortenURLWithOptions(originalURL string, options map[string]string) (strin
 	writer.WriteField("url", originalURL)
 
 	// Add options
-	if options != nil {
-		for key, value := range options {
-			if value != "" {
-				writer.WriteField(key, value)
-			}
+	for key, value := range options {
+		if value != "" {
+			writer.WriteField(key, value)
 		}
 	}
 
 	err := writer.Close()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	req, err := http.NewRequest("POST", baseURL, &buf)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -815,21 +1017,24 @@ func shortenURLWithOptions(originalURL string, options map[string]string) (strin
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("shorten failed with status %d: %s", resp.StatusCode, string(body))
+		return "", "", fmt.Errorf("shorten failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return strings.TrimSpace(string(body)), nil
+	shortURL := strings.TrimSpace(string(body))
+	token := resp.Header.Get("X-Token")
+
+	return shortURL, token, nil
 }
 
 func getRedirectURL(shortURL string) (string, error) {

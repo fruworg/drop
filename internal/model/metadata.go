@@ -24,6 +24,11 @@ func (m *FileMetadata) ID() string {
 	return m.ResourcePath
 }
 
+// IsFile returns true if this metadata represents a regular file (not a URL shortener)
+func (m *FileMetadata) IsFile() bool {
+	return !m.IsURLShortener
+}
+
 // AdminFileInfo represents file information for admin display
 type AdminFileInfo struct {
 	FileMetadata

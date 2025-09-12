@@ -8,6 +8,7 @@ import (
 
 	"github.com/marianozunino/drop/internal/config"
 	"github.com/marianozunino/drop/internal/model"
+	"github.com/marianozunino/drop/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +22,10 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	}
 
 	db, err := NewDB(cfg)
+	require.NoError(t, err)
+
+	// Run migrations for tests
+	err = testutil.RunTestMigrations(dbPath)
 	require.NoError(t, err)
 
 	cleanup := func() {

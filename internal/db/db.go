@@ -125,6 +125,47 @@ func (db *DB) GetMetadataByID(ID string) (model.FileMetadata, error) {
 	return metadata, nil
 }
 
+// GetMetadataByToken retrieves metadata from SQLite by token
+func (db *DB) GetMetadataByToken(token string) (model.FileMetadata, error) {
+	var metadata model.FileMetadata
+	var expiresAt sql.NullTime
+
+	err := db.QueryRow(`
+		SELECT resource_path, token, original_name, upload_date, expires_at, 
+		       size, content_type, one_time_view, original_url, is_url_shortener,
+		       access_count, ip_address, created_at, updated_at
+		FROM metadata WHERE token = ?
+	`, token).Scan(
+		&metadata.ResourcePath,
+		&metadata.Token,
+		&metadata.OriginalName,
+		&metadata.UploadDate,
+		&expiresAt,
+		&metadata.Size,
+		&metadata.ContentType,
+		&metadata.OneTimeView,
+		&metadata.OriginalURL,
+		&metadata.IsURLShortener,
+		&metadata.AccessCount,
+		&metadata.IPAddress,
+		&metadata.CreatedAt,
+		&metadata.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return metadata, fmt.Errorf("no metadata found with token: %s", token)
+		}
+		return metadata, err
+	}
+
+	// Handle NULL expires_at
+	if expiresAt.Valid {
+		metadata.ExpiresAt = &expiresAt.Time
+	}
+
+	return metadata, nil
+}
+
 // ListAllMetadata lists all metadata
 func (db *DB) ListAllMetadata() ([]model.FileMetadata, error) {
 	var metadataList []model.FileMetadata

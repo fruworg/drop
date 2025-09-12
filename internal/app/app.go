@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -28,9 +29,9 @@ type App struct {
 	expirationManager *expiration.ExpirationManager
 	config            *config.Config
 	db                *db.DB
+	actualPort        int
 }
 
-// formatBytes returns a human-readable byte count
 func formatBytes(bytes int64) string {
 	if bytes < 1024 {
 		return fmt.Sprintf("%d B", bytes)
@@ -51,7 +52,6 @@ func formatBytes(bytes int64) string {
 	return fmt.Sprintf("%.2f %s", size, units[unitIndex])
 }
 
-// logConfiguration formats and logs the configuration in a human-readable way
 func logConfiguration(cfg *config.Config) {
 	log.Printf("Drop File Upload Service - Configuration:")
 	log.Printf("  Server Port: %d", cfg.Port)
@@ -137,6 +137,51 @@ func New() (*App, error) {
 	return app, nil
 }
 
+// NewWithConfig creates a new App instance with a custom configuration
+func NewWithConfig(cfg *config.Config) (*App, error) {
+	logConfiguration(cfg)
+
+	err := setup(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := db.NewDB(cfg)
+	if err != nil {
+		log.Printf("Failed to initialize database: %v", err)
+		return nil, err
+	}
+
+	expirationManager, err := expiration.NewExpirationManager(cfg, db)
+	if err != nil {
+		log.Printf("Failed to initialize expiration manager: %v", err)
+		return nil, err
+	}
+
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+
+	e.Server.ReadTimeout = 10 * time.Minute
+	e.Server.WriteTimeout = 10 * time.Minute
+	e.Server.IdleTimeout = 15 * time.Minute
+	e.Server.ReadHeaderTimeout = 30 * time.Second
+
+	app := &App{
+		server:            e,
+		expirationManager: expirationManager,
+		config:            cfg,
+		db:                db,
+	}
+
+	e.Use(humanLogger())
+	e.Use(middleware.Recover())
+	e.Use(middie.SecurityHeaders())
+
+	registerRoutes(e, app)
+	return app, nil
+}
+
 // humanLogger creates a human-friendly logger middleware
 func humanLogger() echo.MiddlewareFunc {
 	return middleware.LoggerWithConfig(middleware.LoggerConfig{
@@ -154,7 +199,19 @@ func (a *App) Start() {
 		a.expirationManager.Start()
 	}
 
-	serverAddr := fmt.Sprintf(":%d", a.config.Port)
+	if a.config.Port == 0 {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Printf("Failed to find available port: %v", err)
+			return
+		}
+		a.actualPort = listener.Addr().(*net.TCPAddr).Port
+		listener.Close()
+	} else {
+		a.actualPort = a.config.Port
+	}
+
+	serverAddr := fmt.Sprintf(":%d", a.actualPort)
 	fullURL := fmt.Sprintf("http://localhost%s", serverAddr)
 
 	log.Printf("Starting HTTP server on %s", serverAddr)
@@ -171,7 +228,15 @@ func (a *App) Start() {
 	log.Printf("")
 }
 
-// Stop stops all application services
+// GetPort returns the actual port the server is running on
+func (a *App) GetPort() int {
+	if a.actualPort != 0 {
+		return a.actualPort
+	}
+	return a.config.Port
+}
+
+// Stop stops the application
 func (a *App) Stop() {
 	log.Printf("Stopping services...")
 
@@ -206,20 +271,16 @@ func registerRoutes(e *echo.Echo, app *App) {
 	))
 	h := handler.NewHandler(app.expirationManager, app.config, app.db)
 
-	// Define routes
 	e.GET("/", h.HandleHome)
 	e.GET("/chunked", h.HandleChunkedUpload)
 	e.POST("/", h.HandleUpload)
 
-	// Chunked upload routes
 	e.POST("/upload/init", h.InitiateChunkedUpload)
 	e.POST("/upload/chunk/:upload_id/:chunk", h.UploadChunk)
 	e.GET("/upload/status/:upload_id", h.GetUploadStatus)
 
-	// Upload statistics
 	e.GET("/stats", h.HandleUploadStats)
 
-	// Admin routes (only if enabled)
 	if app.config.AdminPanelEnabled {
 		e.GET("/admin/login", h.HandleAdminLogin)
 		e.POST("/admin/login", h.HandleAdminLogin)
@@ -230,7 +291,6 @@ func registerRoutes(e *echo.Echo, app *App) {
 		e.GET("/admin/file/:filename/delete", h.HandleAdminFileDelete)
 	}
 
-	// Binary serving routes
 	e.GET("/binaries/:platform", h.HandleBinaryDownload)
 	e.GET("/binaries", h.HandleBinaryList)
 	e.GET("/download", h.HandleBinaryAutoDetect)

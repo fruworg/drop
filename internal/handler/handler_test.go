@@ -14,6 +14,7 @@ import (
 	"github.com/marianozunino/drop/internal/db"
 	"github.com/marianozunino/drop/internal/expiration"
 	"github.com/marianozunino/drop/internal/model"
+	"github.com/marianozunino/drop/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +44,10 @@ func setupTestEnvironment(t *testing.T) (string, *Handler, *db.DB, func()) {
 	}
 
 	testDB, err := db.NewDB(cfg)
+	require.NoError(t, err)
+
+	// Run migrations for tests
+	err = testutil.RunTestMigrations(testDBPath)
 	require.NoError(t, err)
 
 	expManager, err := expiration.NewExpirationManager(cfg, testDB)

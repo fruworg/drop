@@ -24,23 +24,50 @@ func (h *Handler) HandleFileManagement(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid file path")
 	}
 
-	filePath := filepath.Join(h.cfg.UploadPath, filename)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return c.String(http.StatusNotFound, "File not found")
+	token := c.FormValue("token")
+	if token == "" {
+		log.Printf("Missing management token for %s by %s", filename, c.RealIP())
+		return c.String(http.StatusBadRequest, "Missing management token")
 	}
 
-	// Get and validate management token
-	meta, err := h.validateManagementToken(c, filePath)
+	meta, err := h.db.GetMetadataByToken(token)
 	if err != nil {
-		return err
+		log.Printf("Invalid management token for %s by %s: %v", filename, c.RealIP(), err)
+		return c.String(http.StatusUnauthorized, "Invalid management token")
 	}
 
-	// Handle delete operation
+	// Verify that the token belongs to the requested resource
+	// For URL shorteners, check if the filename matches the ResourcePath
+	// For regular files, check if the filename matches the ResourcePath (without extension)
+	if meta.IsFile() {
+		expectedFilename := filepath.Base(meta.ResourcePath)
+		if expectedFilename != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", expectedFilename, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
+	} else {
+		if meta.ResourcePath != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", meta.ResourcePath, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
+	}
+
 	if _, deleteRequested := c.Request().Form["delete"]; deleteRequested {
-		return h.handleFileDelete(c, filePath, meta)
+		if meta.IsURLShortener {
+			return h.handleURLShortenerDelete(c, filename, meta)
+		} else if meta.IsFile() {
+			filePath := meta.ResourcePath
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				log.Printf("Physical file %s not found, cleaning up metadata", filePath)
+				if err := h.db.DeleteMetadata(&meta); err != nil {
+					log.Printf("Warning: Failed to delete orphaned metadata for %s: %v", filename, err)
+				}
+				return c.String(http.StatusNotFound, "File not found")
+			}
+			return h.handleFileDelete(c, filePath, meta)
+		}
 	}
 
-	// Handle expiration update
 	if expiresStr := c.FormValue("expires"); expiresStr != "" {
 		return h.handleExpirationUpdate(c, expiresStr, meta)
 	}
@@ -54,31 +81,6 @@ func (h *Handler) parseRequestForm(c echo.Context) error {
 		return c.Request().ParseForm()
 	}
 	return nil
-}
-
-// validateManagementToken validates the management token for file operations
-func (h *Handler) validateManagementToken(c echo.Context, filePath string) (model.FileMetadata, error) {
-	var meta model.FileMetadata
-
-	token := c.FormValue("token")
-	if token == "" {
-		log.Printf("Missing management token for %s by %s", filePath, c.RealIP())
-		return meta, c.String(http.StatusBadRequest, "Missing management token")
-	}
-
-	var err error
-	meta, err = h.db.GetMetadataByID(filePath)
-	if err != nil {
-		log.Printf("Warning: Failed to get metadata for %s by %s: %v", filepath.Base(filePath), c.RealIP(), err)
-		return meta, c.String(http.StatusInternalServerError, "Failed to get metadata")
-	}
-
-	if meta.Token != token {
-		log.Printf("Invalid management token for %s by %s", filePath, c.RealIP())
-		return meta, c.String(http.StatusUnauthorized, "Invalid management token")
-	}
-
-	return meta, nil
 }
 
 // handleFileDelete handles the file deletion operation
@@ -113,4 +115,17 @@ func (h *Handler) handleExpirationUpdate(c echo.Context, expiresStr string, meta
 
 	log.Printf("Expiration updated: %s to %v by %s", meta.ResourcePath, expirationDate, c.RealIP())
 	return c.String(http.StatusOK, "Expiration updated successfully")
+}
+
+// handleURLShortenerDelete handles the deletion of URL shorteners
+func (h *Handler) handleURLShortenerDelete(c echo.Context, shortID string, meta model.FileMetadata) error {
+	// For URL shorteners, we only need to delete the metadata
+	// There's no physical file to remove
+	if err := h.db.DeleteMetadata(&meta); err != nil {
+		log.Printf("Warning: Failed to delete metadata for URL shortener %s by user %s: %v", shortID, c.RealIP(), err)
+		return c.String(http.StatusInternalServerError, "Failed to delete URL shortener")
+	}
+
+	log.Printf("URL shortener deleted: %s by %s", shortID, c.RealIP())
+	return c.String(http.StatusOK, "URL shortener deleted successfully")
 }
