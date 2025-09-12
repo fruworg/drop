@@ -86,25 +86,54 @@ func (h *Handler) HandleAdminFileView(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "Unauthorized")
 	}
 
+	// Check if admin panel is enabled
+	if !h.cfg.AdminPanelEnabled {
+		return c.String(http.StatusNotFound, "Admin panel is disabled")
+	}
+
 	filename := c.Param("filename")
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
 		return c.String(http.StatusBadRequest, "Invalid file path")
 	}
 
-	filePath := filepath.Join(h.cfg.UploadPath, filename)
-	meta, err := h.db.GetMetadataByID(filePath)
+	token := c.QueryParam("token")
+	if token == "" {
+		return c.String(http.StatusBadRequest, "Missing management token")
+	}
+
+	meta, err := h.db.GetMetadataByToken(token)
 	if err != nil {
-		return c.String(http.StatusNotFound, "File not found")
+		log.Printf("Invalid management token for admin view of %s: %v", filename, err)
+		return c.String(http.StatusUnauthorized, "Invalid management token")
+	}
+
+	// Verify that the token belongs to the requested resource
+	if meta.IsFile() {
+		expectedFilename := filepath.Base(meta.ResourcePath)
+		if expectedFilename != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", expectedFilename, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
+	} else {
+		if meta.ResourcePath != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", meta.ResourcePath, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
 	}
 
 	adminFile := h.enrichFileMetadata(meta)
 	return templates.AdminFileView(adminFile).Render(c.Request().Context(), c.Response())
 }
 
-// HandleAdminFileDelete deletes a file from admin panel
+// HandleAdminFileDelete deletes a file from admin panel using token-based approach
 func (h *Handler) HandleAdminFileDelete(c echo.Context) error {
 	if !h.isAdminAuthenticated(c) {
 		return c.String(http.StatusUnauthorized, "Unauthorized")
+	}
+
+	// Check if admin panel is enabled
+	if !h.cfg.AdminPanelEnabled {
+		return c.String(http.StatusNotFound, "Admin panel is disabled")
 	}
 
 	filename := c.Param("filename")
@@ -112,23 +141,55 @@ func (h *Handler) HandleAdminFileDelete(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid file path")
 	}
 
-	filePath := filepath.Join(h.cfg.UploadPath, filename)
+	token := c.QueryParam("token")
+	if token == "" {
+		return c.String(http.StatusBadRequest, "Missing management token")
+	}
 
-	meta, err := h.db.GetMetadataByID(filePath)
+	// Get metadata by token - this is much more reliable than filename resolution
+	meta, err := h.db.GetMetadataByToken(token)
 	if err != nil {
-		return c.String(http.StatusNotFound, "File not found")
+		log.Printf("Invalid management token for admin deletion of %s: %v", filename, err)
+		return c.String(http.StatusUnauthorized, "Invalid management token")
 	}
 
-	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		log.Printf("Error deleting file %s: %v", filePath, err)
-		return c.String(http.StatusInternalServerError, "Failed to delete file")
+	// Verify that the token belongs to the requested resource
+	// For URL shorteners, check if the filename matches the ResourcePath
+	// For regular files, check if the filename matches the ResourcePath (without extension)
+	if meta.IsFile() {
+		expectedFilename := filepath.Base(meta.ResourcePath)
+		if expectedFilename != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", expectedFilename, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
+	} else {
+		if meta.ResourcePath != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", meta.ResourcePath, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
 	}
 
-	if err := h.db.DeleteMetadata(&meta); err != nil {
-		log.Printf("Warning: Failed to delete metadata for %s: %v", filePath, err)
-	}
+	// Handle URL shorteners differently - they don't have physical files
+	if meta.IsURLShortener {
+		if err := h.db.DeleteMetadata(&meta); err != nil {
+			log.Printf("Warning: Failed to delete metadata for URL shortener %s: %v", filename, err)
+			return c.String(http.StatusInternalServerError, "Failed to delete URL shortener")
+		}
+		log.Printf("Admin deleted URL shortener: %s", filename)
+	} else {
+		// Handle regular files - use the actual resource path
+		filePath := meta.ResourcePath
+		if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+			log.Printf("Error deleting file %s: %v", filePath, err)
+			return c.String(http.StatusInternalServerError, "Failed to delete file")
+		}
 
-	log.Printf("Admin deleted file: %s", filePath)
+		if err := h.db.DeleteMetadata(&meta); err != nil {
+			log.Printf("Warning: Failed to delete metadata for %s: %v", filePath, err)
+		}
+
+		log.Printf("Admin deleted file: %s", filePath)
+	}
 
 	redirectURL := "/admin"
 	params := []string{}
@@ -159,15 +220,39 @@ func (h *Handler) HandleAdminFileUpdate(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "Unauthorized")
 	}
 
+	// Check if admin panel is enabled
+	if !h.cfg.AdminPanelEnabled {
+		return c.String(http.StatusNotFound, "Admin panel is disabled")
+	}
+
 	filename := c.Param("filename")
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
 		return c.String(http.StatusBadRequest, "Invalid file path")
 	}
 
-	filePath := filepath.Join(h.cfg.UploadPath, filename)
-	meta, err := h.db.GetMetadataByID(filePath)
+	token := c.FormValue("token")
+	if token == "" {
+		return c.String(http.StatusBadRequest, "Missing management token")
+	}
+
+	meta, err := h.db.GetMetadataByToken(token)
 	if err != nil {
-		return c.String(http.StatusNotFound, "File not found")
+		log.Printf("Invalid management token for admin update of %s: %v", filename, err)
+		return c.String(http.StatusUnauthorized, "Invalid management token")
+	}
+
+	// Verify that the token belongs to the requested resource
+	if meta.IsFile() {
+		expectedFilename := filepath.Base(meta.ResourcePath)
+		if expectedFilename != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", expectedFilename, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
+	} else {
+		if meta.ResourcePath != filename {
+			log.Printf("Token mismatch: token belongs to %s but requested %s", meta.ResourcePath, filename)
+			return c.String(http.StatusUnauthorized, "Invalid management token")
+		}
 	}
 
 	if expiresStr := c.FormValue("expires"); expiresStr != "" {
@@ -189,12 +274,12 @@ func (h *Handler) HandleAdminFileUpdate(c echo.Context) error {
 	}
 
 	if err := h.db.StoreMetadata(&meta); err != nil {
-		log.Printf("Error updating metadata for %s: %v", filePath, err)
+		log.Printf("Error updating metadata for %s: %v", meta.ResourcePath, err)
 		return c.String(http.StatusInternalServerError, "Failed to update file")
 	}
 
-	log.Printf("Admin updated file: %s", filePath)
-	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/admin/file/%s", filename))
+	log.Printf("Admin updated file: %s", meta.ResourcePath)
+	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/admin/file/%s?token=%s", filename, token))
 }
 
 // HandleAdminLogin handles admin login (simple implementation)

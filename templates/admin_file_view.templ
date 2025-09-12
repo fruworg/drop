@@ -141,9 +141,17 @@ templ AdminFileView(file model.AdminFileInfo) {
 			</div>
 
 			<div class="content">
-				<div class="file-link">
-					<strong>File URL:</strong> <a href={ templ.URL("/" + filepath.Base(file.ResourcePath)) } target="_blank">/{ filepath.Base(file.ResourcePath) }</a>
-				</div>
+				if file.IsURLShortener {
+					<div class="file-link">
+						<strong>Short URL:</strong> <a href={ templ.URL("/" + filepath.Base(file.ResourcePath)) } target="_blank">/{ filepath.Base(file.ResourcePath) }</a>
+						<br/>
+						<strong>Redirects to:</strong> <a href={ templ.URL(file.OriginalURL) } target="_blank">{ file.OriginalURL }</a>
+					</div>
+				} else {
+					<div class="file-link">
+						<strong>File URL:</strong> <a href={ templ.URL("/" + filepath.Base(file.ResourcePath)) } target="_blank">/{ filepath.Base(file.ResourcePath) }</a>
+					</div>
+				}
 
 				<div class="file-info">
 					<div class="info-group">
@@ -154,14 +162,16 @@ templ AdminFileView(file model.AdminFileInfo) {
 						<div class="info-label">Original Name</div>
 						<div class="info-value">{ file.OriginalName }</div>
 					</div>
-					<div class="info-group">
-						<div class="info-label">File Size</div>
-						<div class="info-value">{ FormatBytes(file.Size) }</div>
-					</div>
-					<div class="info-group">
-						<div class="info-label">Content Type</div>
-						<div class="info-value">{ file.ContentType }</div>
-					</div>
+					if !file.IsURLShortener {
+						<div class="info-group">
+							<div class="info-label">File Size</div>
+							<div class="info-value">{ FormatBytes(file.Size) }</div>
+						</div>
+						<div class="info-group">
+							<div class="info-label">Content Type</div>
+							<div class="info-value">{ file.ContentType }</div>
+						</div>
+					}
 					<div class="info-group">
 						<div class="info-label">Upload Date</div>
 						<div class="info-value">{ file.UploadDate.Format("2006-01-02 15:04:05") }</div>
@@ -197,6 +207,7 @@ templ AdminFileView(file model.AdminFileInfo) {
 				<div class="form-section">
 					<h3>Update File Settings</h3>
 					<form method="POST">
+						<input type="hidden" name="token" value={ file.Token }/>
 						<div class="form-group">
 							<label for="original_name">Original Name:</label>
 							<input type="text" id="original_name" name="original_name" value={ file.OriginalName }/>
@@ -228,8 +239,13 @@ templ AdminFileView(file model.AdminFileInfo) {
 
 				<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
 					<h3>Danger Zone</h3>
-					<p style="color: #666; margin-bottom: 15px;">Permanently delete this file. This action cannot be undone.</p>
-					<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete") } class="btn delete-btn" @click="confirmDeleteFile($event)">Delete File</a>
+					if file.IsURLShortener {
+						<p style="color: #666; margin-bottom: 15px;">Permanently delete this URL shortener. This action cannot be undone.</p>
+						<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete?token=" + file.Token) } class="btn delete-btn" @click="confirmDeleteFile($event)">Delete URL Shortener</a>
+					} else {
+						<p style="color: #666; margin-bottom: 15px;">Permanently delete this file. This action cannot be undone.</p>
+						<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete?token=" + file.Token) } class="btn delete-btn" @click="confirmDeleteFile($event)">Delete File</a>
+					}
 				</div>
 			</div>
 		</body>

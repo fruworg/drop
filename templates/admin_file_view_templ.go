@@ -35,229 +35,335 @@ func AdminFileView(file model.AdminFileInfo) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>File Details - Drop Admin</title><script defer src=\"https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t\tbody {\n\t\t\t\t\tfont-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n\t\t\t\t\tmax-width: 800px;\n\t\t\t\t\tmargin: 0 auto;\n\t\t\t\t\tpadding: 20px;\n\t\t\t\t\tbackground-color: #f5f5f5;\n\t\t\t\t}\n\t\t\t\t.header {\n\t\t\t\t\tbackground: white;\n\t\t\t\t\tpadding: 20px;\n\t\t\t\t\tborder-radius: 8px;\n\t\t\t\t\tbox-shadow: 0 2px 4px rgba(0,0,0,0.1);\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tjustify-content: space-between;\n\t\t\t\t\talign-items: center;\n\t\t\t\t}\n\t\t\t\th1 {\n\t\t\t\t\tmargin: 0;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t}\n\t\t\t\t.back-btn {\n\t\t\t\t\tbackground-color: #6c757d;\n\t\t\t\t\tcolor: white;\n\t\t\t\t\tpadding: 8px 16px;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t}\n\t\t\t\t.back-btn:hover {\n\t\t\t\t\tbackground-color: #5a6268;\n\t\t\t\t}\n\t\t\t\t.content {\n\t\t\t\t\tbackground: white;\n\t\t\t\t\tpadding: 30px;\n\t\t\t\t\tborder-radius: 8px;\n\t\t\t\t\tbox-shadow: 0 2px 4px rgba(0,0,0,0.1);\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\t.file-info {\n\t\t\t\t\tdisplay: grid;\n\t\t\t\t\tgrid-template-columns: 1fr 1fr;\n\t\t\t\t\tgap: 20px;\n\t\t\t\t\tmargin-bottom: 30px;\n\t\t\t\t}\n\t\t\t\t.info-group {\n\t\t\t\t\tbackground-color: #f8f9fa;\n\t\t\t\t\tpadding: 15px;\n\t\t\t\t\tborder-radius: 6px;\n\t\t\t\t}\n\t\t\t\t.info-label {\n\t\t\t\t\tfont-weight: 600;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t\tmargin-bottom: 5px;\n\t\t\t\t}\n\t\t\t\t.info-value {\n\t\t\t\t\tfont-family: monospace;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tcolor: #666;\n\t\t\t\t}\n\t\t\t\t.form-section {\n\t\t\t\t\tborder-top: 1px solid #eee;\n\t\t\t\t\tpadding-top: 30px;\n\t\t\t\t}\n\t\t\t\t.form-group {\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\tlabel {\n\t\t\t\t\tdisplay: block;\n\t\t\t\t\tmargin-bottom: 5px;\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t}\n\t\t\t\tinput[type=\"text\"], input[type=\"datetime-local\"], input[type=\"checkbox\"] {\n\t\t\t\t\twidth: 100%;\n\t\t\t\t\tpadding: 10px;\n\t\t\t\t\tborder: 1px solid #ddd;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tbox-sizing: border-box;\n\t\t\t\t}\n\t\t\t\tinput[type=\"checkbox\"] {\n\t\t\t\t\twidth: auto;\n\t\t\t\t}\n\t\t\t\tbutton {\n\t\t\t\t\tbackground-color: #007bff;\n\t\t\t\t\tcolor: white;\n\t\t\t\t\tpadding: 10px 20px;\n\t\t\t\t\tborder: none;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tcursor: pointer;\n\t\t\t\t\tmargin-right: 10px;\n\t\t\t\t}\n\t\t\t\tbutton:hover {\n\t\t\t\t\tbackground-color: #0056b3;\n\t\t\t\t}\n\t\t\t\t.delete-btn {\n\t\t\t\t\tbackground-color: #dc3545;\n\t\t\t\t}\n\t\t\t\t.delete-btn:hover {\n\t\t\t\t\tbackground-color: #c82333;\n\t\t\t\t}\n\t\t\t\t.file-link {\n\t\t\t\t\tbackground-color: #e3f2fd;\n\t\t\t\t\tpadding: 15px;\n\t\t\t\t\tborder-radius: 6px;\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\t.file-link a {\n\t\t\t\t\tcolor: #1976d2;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t}\n\t\t\t\t.file-link a:hover {\n\t\t\t\t\ttext-decoration: underline;\n\t\t\t\t}\n\t\t\t</style></head><body x-data=\"fileViewSettings()\"><div class=\"header\"><h1>File Details</h1><a href=\"/admin\" class=\"back-btn\">← Back to Dashboard</a></div><div class=\"content\"><div class=\"file-link\"><strong>File URL:</strong> <a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>File Details - Drop Admin</title><script defer src=\"https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t\tbody {\n\t\t\t\t\tfont-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n\t\t\t\t\tmax-width: 800px;\n\t\t\t\t\tmargin: 0 auto;\n\t\t\t\t\tpadding: 20px;\n\t\t\t\t\tbackground-color: #f5f5f5;\n\t\t\t\t}\n\t\t\t\t.header {\n\t\t\t\t\tbackground: white;\n\t\t\t\t\tpadding: 20px;\n\t\t\t\t\tborder-radius: 8px;\n\t\t\t\t\tbox-shadow: 0 2px 4px rgba(0,0,0,0.1);\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tjustify-content: space-between;\n\t\t\t\t\talign-items: center;\n\t\t\t\t}\n\t\t\t\th1 {\n\t\t\t\t\tmargin: 0;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t}\n\t\t\t\t.back-btn {\n\t\t\t\t\tbackground-color: #6c757d;\n\t\t\t\t\tcolor: white;\n\t\t\t\t\tpadding: 8px 16px;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t}\n\t\t\t\t.back-btn:hover {\n\t\t\t\t\tbackground-color: #5a6268;\n\t\t\t\t}\n\t\t\t\t.content {\n\t\t\t\t\tbackground: white;\n\t\t\t\t\tpadding: 30px;\n\t\t\t\t\tborder-radius: 8px;\n\t\t\t\t\tbox-shadow: 0 2px 4px rgba(0,0,0,0.1);\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\t.file-info {\n\t\t\t\t\tdisplay: grid;\n\t\t\t\t\tgrid-template-columns: 1fr 1fr;\n\t\t\t\t\tgap: 20px;\n\t\t\t\t\tmargin-bottom: 30px;\n\t\t\t\t}\n\t\t\t\t.info-group {\n\t\t\t\t\tbackground-color: #f8f9fa;\n\t\t\t\t\tpadding: 15px;\n\t\t\t\t\tborder-radius: 6px;\n\t\t\t\t}\n\t\t\t\t.info-label {\n\t\t\t\t\tfont-weight: 600;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t\tmargin-bottom: 5px;\n\t\t\t\t}\n\t\t\t\t.info-value {\n\t\t\t\t\tfont-family: monospace;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tcolor: #666;\n\t\t\t\t}\n\t\t\t\t.form-section {\n\t\t\t\t\tborder-top: 1px solid #eee;\n\t\t\t\t\tpadding-top: 30px;\n\t\t\t\t}\n\t\t\t\t.form-group {\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\tlabel {\n\t\t\t\t\tdisplay: block;\n\t\t\t\t\tmargin-bottom: 5px;\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t\tcolor: #333;\n\t\t\t\t}\n\t\t\t\tinput[type=\"text\"], input[type=\"datetime-local\"], input[type=\"checkbox\"] {\n\t\t\t\t\twidth: 100%;\n\t\t\t\t\tpadding: 10px;\n\t\t\t\t\tborder: 1px solid #ddd;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tbox-sizing: border-box;\n\t\t\t\t}\n\t\t\t\tinput[type=\"checkbox\"] {\n\t\t\t\t\twidth: auto;\n\t\t\t\t}\n\t\t\t\tbutton {\n\t\t\t\t\tbackground-color: #007bff;\n\t\t\t\t\tcolor: white;\n\t\t\t\t\tpadding: 10px 20px;\n\t\t\t\t\tborder: none;\n\t\t\t\t\tborder-radius: 4px;\n\t\t\t\t\tfont-size: 14px;\n\t\t\t\t\tcursor: pointer;\n\t\t\t\t\tmargin-right: 10px;\n\t\t\t\t}\n\t\t\t\tbutton:hover {\n\t\t\t\t\tbackground-color: #0056b3;\n\t\t\t\t}\n\t\t\t\t.delete-btn {\n\t\t\t\t\tbackground-color: #dc3545;\n\t\t\t\t}\n\t\t\t\t.delete-btn:hover {\n\t\t\t\t\tbackground-color: #c82333;\n\t\t\t\t}\n\t\t\t\t.file-link {\n\t\t\t\t\tbackground-color: #e3f2fd;\n\t\t\t\t\tpadding: 15px;\n\t\t\t\t\tborder-radius: 6px;\n\t\t\t\t\tmargin-bottom: 20px;\n\t\t\t\t}\n\t\t\t\t.file-link a {\n\t\t\t\t\tcolor: #1976d2;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\tfont-weight: 500;\n\t\t\t\t}\n\t\t\t\t.file-link a:hover {\n\t\t\t\t\ttext-decoration: underline;\n\t\t\t\t}\n\t\t\t</style></head><body x-data=\"fileViewSettings()\"><div class=\"header\"><h1>File Details</h1><a href=\"/admin\" class=\"back-btn\">← Back to Dashboard</a></div><div class=\"content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 templ.SafeURL = templ.URL("/" + filepath.Base(file.ResourcePath))
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var2)))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		if file.IsURLShortener {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"file-link\"><strong>Short URL:</strong> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var2 templ.SafeURL = templ.URL("/" + filepath.Base(file.ResourcePath))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var2)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" target=\"_blank\">/")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 string
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(filepath.Base(file.ResourcePath))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 146, Col: 147}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</a><br><strong>Redirects to:</strong> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 templ.SafeURL = templ.URL(file.OriginalURL)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var4)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" target=\"_blank\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(file.OriginalURL)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 148, Col: 111}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</a></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"file-link\"><strong>File URL:</strong> <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var6 templ.SafeURL = templ.URL("/" + filepath.Base(file.ResourcePath))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var6)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" target=\"_blank\">/")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(filepath.Base(file.ResourcePath))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 152, Col: 146}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</a></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" target=\"_blank\">/")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(filepath.Base(file.ResourcePath))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 145, Col: 145}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a></div><div class=\"file-info\"><div class=\"info-group\"><div class=\"info-label\">Filename</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(filepath.Base(file.ResourcePath))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 151, Col: 64}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></div><div class=\"info-group\"><div class=\"info-label\">Original Name</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(file.OriginalName)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 155, Col: 49}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></div><div class=\"info-group\"><div class=\"info-label\">File Size</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(FormatBytes(file.Size))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 159, Col: 54}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><div class=\"info-group\"><div class=\"info-label\">Content Type</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(file.ContentType)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 163, Col: 48}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div><div class=\"info-group\"><div class=\"info-label\">Upload Date</div><div class=\"info-value\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"file-info\"><div class=\"info-group\"><div class=\"info-label\">Filename</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(file.UploadDate.Format("2006-01-02 15:04:05"))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(filepath.Base(file.ResourcePath))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 167, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 159, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><div class=\"info-group\"><div class=\"info-label\">Expires</div><div class=\"info-value\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div><div class=\"info-group\"><div class=\"info-label\">Original Name</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if file.IsExpired {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span style=\"color: #dc3545; font-weight: bold;\">Expired</span>")
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(file.OriginalName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 163, Col: 49}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if !file.IsURLShortener {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"info-group\"><div class=\"info-label\">File Size</div><div class=\"info-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		} else if file.DaysLeft <= 7 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span style=\"color: #ffc107; font-weight: bold;\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(file.DaysLeft))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 175, Col: 86}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " days left</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(file.DaysLeft))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(FormatBytes(file.Size))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 177, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 168, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " days left")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div><div class=\"info-group\"><div class=\"info-label\">Content Type</div><div class=\"info-value\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(file.ContentType)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 172, Col: 49}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><div class=\"info-group\"><div class=\"info-label\">One-Time View</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if file.OneTimeView {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span style=\"color: #dc3545; font-weight: bold;\">Yes</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span style=\"color: #28a745;\">No</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div></div><div class=\"info-group\"><div class=\"info-label\">Management Token</div><div class=\"info-value\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(file.Token)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 193, Col: 42}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div></div><div class=\"form-section\"><h3>Update File Settings</h3><form method=\"POST\"><div class=\"form-group\"><label for=\"original_name\">Original Name:</label> <input type=\"text\" id=\"original_name\" name=\"original_name\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"info-group\"><div class=\"info-label\">Upload Date</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(file.OriginalName)
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(file.UploadDate.Format("2006-01-02 15:04:05"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 202, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 177, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"></div><div class=\"form-group\"><label for=\"expires\">Expiration Date:</label> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div><div class=\"info-group\"><div class=\"info-label\">Expires</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if file.ExpiresAt != nil && !file.ExpiresAt.IsZero() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<input type=\"datetime-local\" id=\"expires\" name=\"expires\" value=\"")
+		if file.IsExpired {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span style=\"color: #dc3545; font-weight: bold;\">Expired</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if file.DaysLeft <= 7 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span style=\"color: #ffc107; font-weight: bold;\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(file.ExpiresAt.Format("2006-01-02T15:04"))
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(file.DaysLeft))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 208, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 185, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " days left</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<input type=\"datetime-local\" id=\"expires\" name=\"expires\">")
+			var templ_7745c5c3_Var14 string
+			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(file.DaysLeft))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 187, Col: 37}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " days left")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div><div class=\"form-group\"><label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div><div class=\"info-group\"><div class=\"info-label\">One-Time View</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if file.OneTimeView {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<input type=\"checkbox\" name=\"one_time_view\" checked> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span style=\"color: #dc3545; font-weight: bold;\">Yes</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<input type=\"checkbox\" name=\"one_time_view\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span style=\"color: #28a745;\">No</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "One-time view (file deleted after first access)</label></div><button type=\"submit\">Update File</button></form></div><div style=\"margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;\"><h3>Danger Zone</h3><p style=\"color: #666; margin-bottom: 15px;\">Permanently delete this file. This action cannot be undone.</p><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div><div class=\"info-group\"><div class=\"info-label\">Management Token</div><div class=\"info-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var14 templ.SafeURL = templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var14)))
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(file.Token)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 203, Col: 42}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" class=\"btn delete-btn\" @click=\"confirmDeleteFile($event)\">Delete File</a></div></div></body><script>\n\t\t\tfunction fileViewSettings() {\n\t\t\t\treturn {\n\t\t\t\t\tinit() {\n\t\t\t\t\t\tthis.loadSettings();\n\t\t\t\t\t},\n\n\t\t\t\t\tloadSettings() {\n\t\t\t\t\t\tconst saved = localStorage.getItem('adminSettings');\n\t\t\t\t\t\tif (saved) {\n\t\t\t\t\t\t\tthis.settings = JSON.parse(saved);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.settings = { noConfirmDelete: false };\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tconfirmDeleteFile(event) {\n\t\t\t\t\t\tif (!this.settings.noConfirmDelete) {\n\t\t\t\t\t\t\tif (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {\n\t\t\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t</script></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div></div></div><div class=\"form-section\"><h3>Update File Settings</h3><form method=\"POST\"><input type=\"hidden\" name=\"token\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(file.Token)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 210, Col: 58}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\"><div class=\"form-group\"><label for=\"original_name\">Original Name:</label> <input type=\"text\" id=\"original_name\" name=\"original_name\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(file.OriginalName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 213, Col: 91}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"></div><div class=\"form-group\"><label for=\"expires\">Expiration Date:</label> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if file.ExpiresAt != nil && !file.ExpiresAt.IsZero() {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<input type=\"datetime-local\" id=\"expires\" name=\"expires\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var18 string
+			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(file.ExpiresAt.Format("2006-01-02T15:04"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/admin_file_view.templ`, Line: 219, Col: 114}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<input type=\"datetime-local\" id=\"expires\" name=\"expires\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div><div class=\"form-group\"><label>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if file.OneTimeView {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<input type=\"checkbox\" name=\"one_time_view\" checked> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<input type=\"checkbox\" name=\"one_time_view\"> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "One-time view (file deleted after first access)</label></div><button type=\"submit\">Update File</button></form></div><div style=\"margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;\"><h3>Danger Zone</h3>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if file.IsURLShortener {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p style=\"color: #666; margin-bottom: 15px;\">Permanently delete this URL shortener. This action cannot be undone.</p><a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var19 templ.SafeURL = templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete?token=" + file.Token)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var19)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" class=\"btn delete-btn\" @click=\"confirmDeleteFile($event)\">Delete URL Shortener</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p style=\"color: #666; margin-bottom: 15px;\">Permanently delete this file. This action cannot be undone.</p><a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 templ.SafeURL = templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "/delete?token=" + file.Token)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var20)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" class=\"btn delete-btn\" @click=\"confirmDeleteFile($event)\">Delete File</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</div></div></body><script>\n\t\t\tfunction fileViewSettings() {\n\t\t\t\treturn {\n\t\t\t\t\tinit() {\n\t\t\t\t\t\tthis.loadSettings();\n\t\t\t\t\t},\n\n\t\t\t\t\tloadSettings() {\n\t\t\t\t\t\tconst saved = localStorage.getItem('adminSettings');\n\t\t\t\t\t\tif (saved) {\n\t\t\t\t\t\t\tthis.settings = JSON.parse(saved);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.settings = { noConfirmDelete: false };\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tconfirmDeleteFile(event) {\n\t\t\t\t\t\tif (!this.settings.noConfirmDelete) {\n\t\t\t\t\t\t\tif (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {\n\t\t\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t</script></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

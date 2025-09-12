@@ -293,7 +293,7 @@ func AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirectio
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var13 templ.SafeURL = templ.URL("/admin/file/" + filepath.Base(file.ResourcePath))
+				var templ_7745c5c3_Var13 templ.SafeURL = templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "?token=" + file.Token)
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var13)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -302,7 +302,7 @@ func AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirectio
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var14 templ.SafeURL = templ.URL(GetDeleteURL(filepath.Base(file.ResourcePath), sortField, sortDirection, searchQuery, limit))
+				var templ_7745c5c3_Var14 templ.SafeURL = templ.URL(GetDeleteURL(filepath.Base(file.ResourcePath), file.Token, sortField, sortDirection, searchQuery, limit))
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var14)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

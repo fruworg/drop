@@ -106,8 +106,8 @@ templ AdminFilesTable(files []model.AdminFileInfo, sortField string, sortDirecti
 							</td>
 							<td>
 								<div class="actions">
-									<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath)) } class="btn btn-view">View</a>
-									<a href={ templ.URL(GetDeleteURL(filepath.Base(file.ResourcePath), sortField, sortDirection, searchQuery, limit)) } class="btn btn-delete" @click="confirmDelete($event)">Delete</a>
+									<a href={ templ.URL("/admin/file/" + filepath.Base(file.ResourcePath) + "?token=" + file.Token) } class="btn btn-view">View</a>
+									<a href={ templ.URL(GetDeleteURL(filepath.Base(file.ResourcePath), file.Token, sortField, sortDirection, searchQuery, limit)) } class="btn btn-delete" @click="confirmDelete($event)">Delete</a>
 								</div>
 							</td>
 						</tr>

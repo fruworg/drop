@@ -96,9 +96,14 @@ func GetPaginationURL(sortField, sortDirection, searchQuery, cursor string, limi
 	return url
 }
 
-func GetDeleteURL(filename, sortField, sortDirection, searchQuery string, limit int) string {
+func GetDeleteURL(filename, token, sortField, sortDirection, searchQuery string, limit int) string {
 	url := "/admin/file/" + filename + "/delete"
 	params := []string{}
+
+	// Always include the token for security
+	if token != "" {
+		params = append(params, "token="+token)
+	}
 
 	if searchQuery != "" {
 		params = append(params, "search="+searchQuery)
